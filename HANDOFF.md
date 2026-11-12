@@ -24,10 +24,10 @@ Date: 2026-11-12 (America/Sao_Paulo).
 - npm run typecheck: passed.
 - npm test: **58 passed, zero failed/skipped**, including build, lifecycle, OAuth/security, tools, and Tunnel compensation.
 - npm run test:package: passed; real tarball installed in an isolated home and CLI/Controller exercised.
-- npm pack: local English artifact `meesii-codex-mcp-1.2.1.tgz`.
+- npm pack: local English artifact `release/codex-mcp-1.2.1-english.tgz`; the exact tarball passed isolated installation smoke after the final copy edit. SHA-256: `2B23D87DA5677286FF2FD78A643C9B277671AA7EE7C9D098E82E52DE8B0200DE`.
 - git diff --check: passed.
 - Scan of tracked source/scripts/tests/docs/workflows: no literal Han characters remaining. Escaped non-Latin path fixtures still exercise Unicode support.
-- Real Edge/Playwright rendering of Overview, Projects, Connection, and System at **1440×900** and **390×844**: English text, no page errors, no document horizontal overflow. Screenshots/logs are local under .git and are not shipped.
+- Real Edge/Playwright rendering of Overview, Projects, Connection, and System at **1440×900** and **390×844**: English text, no page errors, no document horizontal overflow. Password and custom-domain dialogs were also rendered and closed without submission. Screenshots/logs are local under .git and are not shipped.
 - Validation used temporary home/config and local loopback ports; no production Tunnel or user account authorization was exercised.
 - This Windows validation does not constitute a real MacBook/ChatGPT account acceptance test. Cross-platform CI is tracked separately below.
 - The workstation's npm script-shell pointed to a Git Bash environment without required utilities. Validation used process-local npm_config_script_shell pointing to Windows cmd.exe; no persistent environment setting was changed.
@@ -38,7 +38,8 @@ Date: 2026-11-12 (America/Sao_Paulo).
 - Do not disable or bypass mandatory CI audit checks, merge on failing checks, or claim an official release.
 - The fork has no repository secrets. The configured npm publication targets the author's `@meesii/codex-mcp` namespace, which is not this user's distribution identity. No npm publish, release tag, or release workflow was triggered.
 - A verified local package is available for use. The existing updater/install scripts still follow upstream; they can replace the English build. Use the local English tarball/source instructions in README.
-- GitHub CI, push, and final publication status will be recorded after the branch is pushed. No deployment is claimed by local build/browser/package success.
+- Implementation commit `86c6755` was pushed without force to the user-owned fork. Cross-platform CI was started successfully: https://github.com/gleidsoncunha-dev/codex-mcp/actions/runs/43332433027 (Node 22, Ubuntu/macOS/Windows). Final check results remain available in that run and the branch checks; local success must not be presented as cross-platform CI success.
+- Publication is **blocked**, with no npm release, GitHub Release, deployment, or merge into main. The existing dependency audit must be resolved first; gates were not bypassed.
 
 ## Next work
 
