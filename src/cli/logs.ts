@@ -11,7 +11,7 @@ const CHUNK_BYTES = 64 * 1024;
 
 /** Follow the current log across rotation, with bounded reads and stdout backpressure. */
 export async function followLogFile(initialPath: string): Promise<void> {
-    if (!existsSync(initialPath)) throw new Error(`还没有运行日志：${initialPath}`);
+    if (!existsSync(initialPath)) throw new Error(`No runtime logs yet: ${initialPath}`);
     const controller = new AbortController();
     const finish = () => controller.abort();
     process.once("SIGINT", finish);
@@ -32,7 +32,7 @@ export async function followLogFile(initialPath: string): Promise<void> {
                     identity = nextIdentity;
                     if (info.size - offset > MAX_FOLLOW_BYTES) {
                         offset = info.size - MAX_FOLLOW_BYTES;
-                        process.stderr.write("日志增长过快，已跳过较早内容。\n");
+                        process.stderr.write("Logs grew too quickly; earlier content was skipped.\n");
                     }
                     while (offset < info.size && !controller.signal.aborted) {
                         const { bytesRead } = await file.read(buffer, 0, Math.min(CHUNK_BYTES, info.size - offset), offset);

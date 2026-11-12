@@ -72,10 +72,10 @@ function generationForHash(passwordHash: string): string {
 
 export function validateNewPassword(password: string): void {
     if (password.length < MIN_PASSWORD_LENGTH) {
-        throw new Error(`连接密码至少需要 ${MIN_PASSWORD_LENGTH} 个字符`);
+        throw new Error(`Connection password must contain at least ${MIN_PASSWORD_LENGTH} characters`);
     }
     if (password.length > 1024) {
-        throw new Error("连接密码太长了，请换一个短一些的密码");
+        throw new Error("Connection password is too long. Choose a shorter password");
     }
 }
 

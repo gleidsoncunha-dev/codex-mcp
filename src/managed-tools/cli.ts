@@ -20,7 +20,7 @@ async function main(argv: string[]): Promise<void> {
             tools.push("cloudflared");
         }
     } else {
-        throw new Error(`未知组件安装模式：${command}`);
+        throw new Error(`Unknown tool installation mode: ${command}`);
     }
 
     await ensureManagedTools(tools);

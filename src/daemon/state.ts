@@ -110,7 +110,7 @@ export function loadDaemonState(): DaemonState | undefined {
             runtimeIntent: parseRuntimeIntent(state.runtimeIntent),
         };
     } catch {
-        throw new Error(`无法读取有效的 daemon 状态：${path}`);
+        throw new Error(`Cannot read valid daemon state: ${path}`);
     }
 }
 
@@ -166,7 +166,7 @@ export function loadProjectsFile(): RegisteredProject[] {
                 lastSeenAt: item.lastSeenAt,
             }));
     } catch (error) {
-        throw new Error(`无法读取有效的项目状态：${path}：${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Cannot read valid project state: ${path}: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
@@ -197,7 +197,7 @@ export function loadBindingsFile(): SessionBinding[] {
             lastSeenAt: item.lastSeenAt,
         }));
     } catch (error) {
-        throw new Error(`无法读取有效的会话绑定状态：${path}：${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Cannot read valid session binding state: ${path}: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 

@@ -114,7 +114,7 @@ export async function cutoverCloudflareDns(
     }
     const current = await snapshotCloudflareDns(snapshot.zoneId, snapshot.hostname);
     if (!dnsRecordsEquivalent(current.records, snapshot.records)) {
-        throw new Error("DNS 记录在确认后又发生了变化，已停止切换；请重新运行 setup 检查最新状态");
+        throw new Error("DNS records changed after confirmation; switching stopped. Run setup again to check the latest state");
     }
     try {
         await deleteDnsRecords(snapshot.zoneId, current.records);
@@ -127,16 +127,16 @@ export async function cutoverCloudflareDns(
         });
         const committed = await snapshotCloudflareDns(snapshot.zoneId, snapshot.hostname);
         if (!dnsSnapshotPointsToTunnel(committed, tunnelId)) {
-            throw new Error("DNS 写入后读取校验不一致");
+            throw new Error("DNS read-back verification did not match after writing");
         }
         return { changed: true, committed };
     } catch (error) {
         try {
             await restorePartialCloudflareDns(snapshot, tunnelId);
         } catch (restoreError) {
-            throw partialDnsError("DNS 切换失败，且旧记录恢复失败", error, restoreError);
+            throw partialDnsError("DNS switch failed and previous records could not be restored", error, restoreError);
         }
-        throw new Error(`DNS 切换失败，已恢复旧记录：${readableError(error)}`);
+        throw new Error(`DNS switch failed; previous records restored: ${readableError(error)}`);
     }
 }
 
@@ -152,13 +152,13 @@ export async function restoreCloudflareDns(
         snapshot.zoneId !== expectedCurrent.zoneId ||
         snapshot.hostname !== expectedCurrent.hostname
     ) {
-        throw new Error("DNS 补偿快照不属于同一个 hostname");
+        throw new Error("DNS rollback snapshot belongs to a different hostname");
     }
     const current = await snapshotCloudflareDns(snapshot.zoneId, snapshot.hostname);
     if (dnsRecordsEquivalent(current.records, snapshot.records)) return;
     if (!dnsRecordsEquivalent(current.records, expectedCurrent.records)) {
         throw new Error(
-            "DNS 在切换后被其它操作修改，拒绝覆盖新的记录；请在 Cloudflare 控制台核对后手动恢复",
+            "DNS was changed by another operation after switching. Refusing to overwrite new records; inspect Cloudflare and restore manually",
         );
     }
     await replaceDnsRecords(snapshot, current);
@@ -177,7 +177,7 @@ async function restorePartialCloudflareDns(
         dnsSnapshotPointsToTunnel(current, expectedTunnelId);
     if (!safeRecoveryState) {
         throw new Error(
-            "DNS 在切换期间被其它操作修改，拒绝覆盖新的记录；请在 Cloudflare 控制台核对后手动恢复",
+            "DNS was changed by another operation during switching. Refusing to overwrite new records; inspect Cloudflare and restore manually",
         );
     }
     if (dnsRecordsEquivalent(current.records, snapshot.records)) return;
@@ -194,7 +194,7 @@ async function replaceDnsRecords(
     }
     const restored = await snapshotCloudflareDns(snapshot.zoneId, snapshot.hostname);
     if (!dnsRecordsEquivalent(restored.records, snapshot.records)) {
-        throw new Error("DNS 恢复请求完成，但读取校验仍与原快照不一致");
+        throw new Error("DNS restoration request completed, but read-back still differs from the original snapshot");
     }
 }
 
@@ -332,19 +332,19 @@ async function cloudflareApiRequest<T>(
         try {
             payload = JSON.parse(text) as CloudflareApiEnvelope<T>;
         } catch {
-            throw new Error(`Cloudflare API 返回了无法识别的内容（HTTP ${response.status}）`);
+            throw new Error(`Cloudflare API returned unrecognized content (HTTP ${response.status})`);
         }
         if (response.status < 200 || response.status >= 300 || payload.success !== true || payload.result === undefined) {
             const detail = payload.errors
                 ?.map((item) => item.message?.trim())
                 .filter((value): value is string => Boolean(value))
-                .join("；");
-            throw new Error(detail || `Cloudflare API 请求失败（HTTP ${response.status}）`);
+                .join("; ");
+            throw new Error(detail || `Cloudflare API request failed (HTTP ${response.status})`);
         }
         return payload.result;
     } catch (error) {
         if (/timed out|timeout/i.test(readableError(error))) {
-            throw new Error("Cloudflare API 请求在 30 秒内没有完成");
+            throw new Error("Cloudflare API request did not finish within 30 seconds");
         }
         throw error;
     }
@@ -352,8 +352,8 @@ async function cloudflareApiRequest<T>(
 
 function partialDnsError(prefix: string, original: unknown, restore: unknown): Error {
     return new Error(
-        `${prefix}。原始错误：${readableError(original)}；恢复错误：${readableError(restore)}。` +
-        "Cloudflare 可能处于部分变更状态，请先运行 `codex-mcp doctor`，不要重复覆盖 DNS。",
+        `${prefix}. Original error: ${readableError(original)}; restoration error: ${readableError(restore)}.` +
+        "Cloudflare may be partially modified. Run `codex-mcp doctor` before overwriting DNS again.",
     );
 }
 

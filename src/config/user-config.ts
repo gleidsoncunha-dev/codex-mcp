@@ -112,15 +112,15 @@ export function loadUserConfig(): UserConfig {
     try {
         const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-            throw new Error("配置内容格式不正确");
+            throw new Error("Invalid configuration format");
         }
         return normalizeUserConfig(raw as Record<string, unknown>);
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("不支持的字段")) {
-            throw new Error(`${message}；1.0 不会自动迁移旧配置`);
+        if (message.includes("unsupported fields")) {
+            throw new Error(`${message}; version 1.0 does not automatically migrate old configuration`);
         }
-        throw new Error(`配置文件有问题：${path}：${message}`);
+        throw new Error(`Invalid configuration file: ${path}: ${message}`);
     }
 }
 
@@ -200,7 +200,7 @@ export function normalizeHostname(value: string): string {
 }
 
 function invalidDomainError(value: string): Error {
-    return new Error(`域名格式不正确：${value}`);
+    return new Error(`Invalid domain format: ${value}`);
 }
 
 function normalizeUserConfig(raw: Record<string, unknown>): UserConfig {
@@ -216,7 +216,7 @@ function normalizeUserConfig(raw: Record<string, unknown>): UserConfig {
     const unknownKeys = Object.keys(raw).filter((key) => !supportedKeys.has(key));
     if (unknownKeys.length > 0) {
         throw new Error(
-            `配置包含 1.0 不支持的字段：${unknownKeys.join(", ")}；请重新运行 codex-mcp setup`,
+            `Configuration contains unsupported fields in 1.0: ${unknownKeys.join(", ")}; run codex-mcp setup again`,
         );
     }
     const config: UserConfig = {};
@@ -284,11 +284,11 @@ function normalizePublicAccess(input: PublicAccessConfig): PublicAccessConfig {
 }
 
 function normalizeListenHost(value: unknown): string {
-    if (typeof value !== "string") throw new Error("host 必须是本机监听地址");
+    if (typeof value !== "string") throw new Error("host must be a local listening address");
     const host = value.trim().toLowerCase();
     if (host === "localhost") return "127.0.0.1";
     if (!["127.0.0.1", "::1", "0.0.0.0", "::"].includes(host)) {
-        throw new Error("host 只支持 127.0.0.1、::1、0.0.0.0 或 ::，确保本机控制接口可达");
+        throw new Error("host only supports 127.0.0.1, ::1, 0.0.0.0, or :: to keep the local control interface reachable");
     }
     return host;
 }
@@ -442,7 +442,7 @@ function assertObjectKeys(value: unknown, label: string, allowed: readonly strin
     }
     const unknown = Object.keys(value as Record<string, unknown>).filter((key) => !allowed.includes(key));
     if (unknown.length > 0) {
-        throw new Error(`${label} 包含 1.0 不支持的字段：${unknown.join(", ")}`);
+        throw new Error(`${label} contains unsupported fields in 1.0: ${unknown.join(", ")}`);
     }
 }
 

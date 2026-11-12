@@ -41,8 +41,8 @@ const publicUrl = computed(() => access.value ? `https://${access.value.domain}/
 watch(() => props.zones, (values) => { if (values.length && !values.includes(zone.value)) zone.value = values[0] ?? ""; }, { immediate: true });
 
 async function copy(value: string): Promise<void> {
-    try { await navigator.clipboard.writeText(value); ElMessage.success("已复制到剪贴板"); }
-    catch { ElMessage.error("复制失败，请手动复制"); }
+    try { await navigator.clipboard.writeText(value); ElMessage.success("Copied to clipboard"); }
+    catch { ElMessage.error("Copy failed. Please copy manually."); }
 }
 async function saveConnectionPassword(): Promise<void> {
     await props.savePassword(password.value);
@@ -57,56 +57,56 @@ async function generate(): Promise<void> {
 
 <template>
     <div>
-        <div class="page-heading"><h1>连接 ChatGPT</h1><p>完成公网地址和连接密码后，运行一次连接检查即可。</p></div>
+        <div class="page-heading"><h1>Connect ChatGPT</h1><p>Set up a public address and connection password, then run a connection check.</p></div>
 
         <div class="stack">
             <el-card shadow="never">
                 <div class="section-heading">
-                    <div><h2>1. 公网地址</h2><p>{{ access ? "连接地址已经准备好。" : "推荐使用 Cloudflare 自动配置，也可以填写现有 HTTPS 域名。" }}</p></div>
-                    <el-tag :type="access ? 'success' : 'warning'">{{ access ? "已配置" : "未配置" }}</el-tag>
+                    <div><h2>1. Public address</h2><p>{{ access ? "The connection address is ready." : "Use automatic Cloudflare setup or enter an existing HTTPS domain." }}</p></div>
+                    <el-tag :type="access ? 'success' : 'warning'">{{ access ? "Configured" : "Not configured" }}</el-tag>
                 </div>
                 <div v-if="publicUrl" class="copy-box"><el-icon><Connection /></el-icon><code>{{ publicUrl }}</code><el-button text :icon="CopyDocument" @click="copy(publicUrl)" /></div>
                 <div class="inline-actions" style="margin-top: 16px">
-                    <el-button type="primary" :icon="MagicStick" @click="cloudflareOpen = true">Cloudflare 自动配置</el-button>
-                    <el-button @click="externalOpen = true">使用自己的域名</el-button>
+                    <el-button type="primary" :icon="MagicStick" @click="cloudflareOpen = true">Automatic Cloudflare setup</el-button>
+                    <el-button @click="externalOpen = true">Use your own domain</el-button>
                 </div>
                 <OperationPanel :operation="operation" @cancel="emit('cancelOperation', $event)" />
             </el-card>
 
             <el-card shadow="never">
-                <div class="section-heading"><div><h2>2. 连接密码</h2><p>公网 MCP 请求需要密码；Web Console 始终只允许本机访问。</p></div><el-tag :type="setup?.passwordConfigured ? 'success' : 'warning'">{{ setup?.passwordConfigured ? "已设置" : "未设置" }}</el-tag></div>
-                <div class="inline-actions"><el-button :icon="Key" @click="passwordOpen = true">{{ setup?.passwordConfigured ? "更换密码" : "设置密码" }}</el-button><el-button text @click="generate">生成并设置安全密码</el-button></div>
-                <el-alert v-if="generatedPassword" style="margin-top: 14px" type="warning" :closable="false"><template #title>密码已经设置，请立即保存明文</template><div class="copy-box" style="margin-top: 8px"><code>{{ generatedPassword }}</code><el-button text :icon="CopyDocument" @click="copy(generatedPassword)" /></div></el-alert>
+                <div class="section-heading"><div><h2>2. Connection password</h2><p>Public MCP requests require a password. Web Console is always local only.</p></div><el-tag :type="setup?.passwordConfigured ? 'success' : 'warning'">{{ setup?.passwordConfigured ? "Set" : "Not set" }}</el-tag></div>
+                <div class="inline-actions"><el-button :icon="Key" @click="passwordOpen = true">{{ setup?.passwordConfigured ? "Change password" : "Set password" }}</el-button><el-button text @click="generate">Generate and set secure password</el-button></div>
+                <el-alert v-if="generatedPassword" style="margin-top: 14px" type="warning" :closable="false"><template #title>Password set. Save it now.</template><div class="copy-box" style="margin-top: 8px"><code>{{ generatedPassword }}</code><el-button text :icon="CopyDocument" @click="copy(generatedPassword)" /></div></el-alert>
             </el-card>
 
             <el-card shadow="never">
-                <div class="section-heading"><div><h2>3. 检查连接</h2><p>确认公网地址、密码、Runtime 和项目都已经准备好。</p></div><el-button type="primary" :icon="Refresh" :loading="busy" @click="emit('check')">开始检查</el-button></div>
-                <div v-if="!result" class="muted small">有问题时会直接告诉你下一步该处理什么。</div>
+                <div class="section-heading"><div><h2>3. Check connection</h2><p>Check that the public address, password, Runtime, and projects are ready.</p></div><el-button type="primary" :icon="Refresh" :loading="busy" @click="emit('check')">Run checks</el-button></div>
+                <div v-if="!result" class="muted small">If a check fails, you will see the next step to resolve it.</div>
             </el-card>
 
             <ConnectionResult :result="result" @action="emit('resultAction', $event)" />
         </div>
 
-        <el-dialog v-model="cloudflareOpen" title="Cloudflare 自动配置" width="min(520px, 92vw)">
+        <el-dialog v-model="cloudflareOpen" title="Automatic Cloudflare setup" width="min(520px, 92vw)">
             <template v-if="zones.length">
                 <el-form label-position="top">
-                    <el-form-item label="域名"><el-select v-model="zone" style="width: 100%"><el-option v-for="item in zones" :key="item" :label="item" :value="item" /></el-select></el-form-item>
-                    <el-form-item label="子域名前缀"><el-input v-model="prefix" /><div class="muted small" style="margin-top: 6px">最终地址：{{ prefix || 'codex-mcp' }}.{{ zone || 'example.com' }}</div></el-form-item>
-                    <el-form-item><el-checkbox v-model="overwrite">允许替换同名 DNS 记录</el-checkbox></el-form-item>
+                    <el-form-item label="Domain"><el-select v-model="zone" style="width: 100%"><el-option v-for="item in zones" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+                    <el-form-item label="Subdomain prefix"><el-input v-model="prefix" /><div class="muted small" style="margin-top: 6px">Final address: {{ prefix || 'codex-mcp' }}.{{ zone || 'example.com' }}</div></el-form-item>
+                    <el-form-item><el-checkbox v-model="overwrite">Allow replacement of an existing DNS record</el-checkbox></el-form-item>
                 </el-form>
             </template>
-            <el-empty v-else description="读取 Cloudflare 账号中的可用域名；没有可用登录时会自动打开授权页"><el-button type="primary" :loading="busy" @click="emit('discover')">读取可用域名</el-button></el-empty>
-            <template #footer><el-button @click="cloudflareOpen = false">取消</el-button><el-button v-if="zones.length" type="primary" :disabled="!zone || !prefix.trim() || busy" @click="cloudflareOpen = false; emit('applyCloudflare', zone, prefix, overwrite)">开始配置</el-button></template>
+            <el-empty v-else description="Load available domains from your Cloudflare account. If needed, the authorization page opens automatically."><el-button type="primary" :loading="busy" @click="emit('discover')">Load available domains</el-button></el-empty>
+            <template #footer><el-button @click="cloudflareOpen = false">Cancel</el-button><el-button v-if="zones.length" type="primary" :disabled="!zone || !prefix.trim() || busy" @click="cloudflareOpen = false; emit('applyCloudflare', zone, prefix, overwrite)">Start setup</el-button></template>
         </el-dialog>
 
-        <el-dialog v-model="externalOpen" title="使用自己的域名" width="min(500px, 92vw)">
-            <el-form label-position="top"><el-form-item label="HTTPS 域名"><el-input v-model="externalDomain" placeholder="mcp.example.com" /><div class="muted small" style="margin-top: 6px">只填写域名，不包含 https:// 或 /mcp。</div></el-form-item></el-form>
-            <template #footer><el-button @click="externalOpen = false">取消</el-button><el-button type="primary" :disabled="!externalDomain.trim() || busy" @click="externalOpen = false; emit('applyExternal', externalDomain)">保存并检查</el-button></template>
+        <el-dialog v-model="externalOpen" title="Use your own domain" width="min(500px, 92vw)">
+            <el-form label-position="top"><el-form-item label="HTTPS domain"><el-input v-model="externalDomain" placeholder="mcp.example.com" /><div class="muted small" style="margin-top: 6px">Enter only the domain, without https:// or /mcp.</div></el-form-item></el-form>
+            <template #footer><el-button @click="externalOpen = false">Cancel</el-button><el-button type="primary" :disabled="!externalDomain.trim() || busy" @click="externalOpen = false; emit('applyExternal', externalDomain)">Save and check</el-button></template>
         </el-dialog>
 
-        <el-dialog v-model="passwordOpen" :title="setup?.passwordConfigured ? '更换连接密码' : '设置连接密码'" width="min(500px, 92vw)">
-            <el-form label-position="top"><el-form-item label="新密码"><el-input v-model="password" type="password" show-password autocomplete="new-password" placeholder="至少 12 个字符" /></el-form-item></el-form>
-            <template #footer><el-button @click="passwordOpen = false">取消</el-button><el-button type="primary" :loading="busy" :disabled="password.length < 12" @click="saveConnectionPassword">保存密码</el-button></template>
+        <el-dialog v-model="passwordOpen" :title="setup?.passwordConfigured ? 'Change connection password' : 'Set connection password'" width="min(500px, 92vw)">
+            <el-form label-position="top"><el-form-item label="New password"><el-input v-model="password" type="password" show-password autocomplete="new-password" placeholder="At least 12 characters" /></el-form-item></el-form>
+            <template #footer><el-button @click="passwordOpen = false">Cancel</el-button><el-button type="primary" :loading="busy" :disabled="password.length < 12" @click="saveConnectionPassword">Save password</el-button></template>
         </el-dialog>
     </div>
 </template>

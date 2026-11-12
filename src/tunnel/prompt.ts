@@ -33,8 +33,8 @@ export async function askYesNo(
         await confirm({
             message: question,
             initialValue: defaultYes,
-            active: "是",
-            inactive: "否",
+            active: "Yes",
+            inactive: "No",
         }),
     );
 }
@@ -76,7 +76,7 @@ export async function askSelect(
 ): Promise<string> {
     requireInteractiveTerminal();
     if (options.length === 0) {
-        throw new Error("选择列表不能为空");
+        throw new Error("Selection list must not be empty");
     }
     return promptValue(
         await select({
@@ -112,20 +112,20 @@ export async function withSpinner<T>(
         progress.stop(successMessage);
         return result;
     } catch (error) {
-        progress.stop("操作失败");
+        progress.stop("Operation failed");
         throw error;
     }
 }
 
 function requireInteractiveTerminal(): void {
     if (!canPromptInteractively()) {
-        throw new Error("这里需要在可以输入内容的终端里运行");
+        throw new Error("This requires an interactive terminal");
     }
 }
 
 function promptValue<T>(value: T | symbol): T {
     if (isCancel(value)) {
-        throw new Error("已取消输入");
+        throw new Error("Input cancelled");
     }
     return value;
 }

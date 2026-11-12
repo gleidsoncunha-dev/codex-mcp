@@ -23,7 +23,7 @@ function ripgrepSpec(target: string, sha256: string, archive: ManagedArchive): M
     const root = fileName.replace(/\.(?:zip|tar\.gz)$/, "");
     return {
         tool: "ripgrep",
-        label: "文件搜索组件",
+        label: "File search tool",
         version: RIPGREP_VERSION,
         url: `${RIPGREP_BASE}/${fileName}`,
         sha256,
@@ -35,7 +35,7 @@ function ripgrepSpec(target: string, sha256: string, archive: ManagedArchive): M
 function cloudflaredSpec(fileName: string, sha256: string, archive: ManagedArchive): ManagedToolSpec {
     return {
         tool: "cloudflared",
-        label: "公网连接组件",
+        label: "Public connection tool",
         version: CLOUDFLARED_VERSION,
         url: `${CLOUDFLARED_BASE}/${fileName}`,
         sha256,
@@ -89,5 +89,5 @@ export function getManagedToolSpec(
         }
     }
 
-    throw new Error(`暂不支持这个系统组合：${platform}/${arch}`);
+    throw new Error(`Unsupported system combination: ${platform}/${arch}`);
 }

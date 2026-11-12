@@ -151,11 +151,11 @@ export function parseCliArgs(argv: string[]): CliFlags {
         if (arg === "--lines") {
             const value = argv[index + 1];
             if (!value || value.startsWith("-")) {
-                throw new Error("`--lines` 后面需要填写 1 到 5000 的行数");
+                throw new Error("`--lines` requires a line count from 1 to 5000");
             }
             const parsed = Number.parseInt(value, 10);
             if (!Number.isInteger(parsed) || String(parsed) !== value || parsed < 1 || parsed > 5000) {
-                throw new Error("`--lines` 必须是 1 到 5000 之间的整数");
+                throw new Error("`--lines` must be an integer from 1 to 5000");
             }
             lines = parsed;
             seen.add("lines");
@@ -165,7 +165,7 @@ export function parseCliArgs(argv: string[]): CliFlags {
         if (arg === "--root") {
             const value = argv[index + 1];
             if (!value || value.startsWith("-")) {
-                throw new Error("`--root` 后面需要填写项目目录");
+                throw new Error("`--root` requires a project directory");
             }
             root = value;
             seen.add("root");
@@ -178,7 +178,7 @@ export function parseCliArgs(argv: string[]): CliFlags {
             continue;
         }
         if (arg.startsWith("-")) {
-            throw new Error(`不认识这个选项：${arg}`);
+            throw new Error(`Unknown option: ${arg}`);
         }
         positionals.push(arg);
     }
@@ -193,43 +193,43 @@ export function parseCliArgs(argv: string[]): CliFlags {
     if (command === "project") {
         const actionToken = remaining[0] ?? "list";
         if (!isProjectAction(actionToken)) {
-            throw new Error(`不认识这个 project 子命令：${actionToken}。可用：list、add、remove、info`);
+            throw new Error(`Unknown project subcommand: ${actionToken}. Available: list, add, remove, info`);
         }
         projectAction = actionToken;
         target = remaining[1];
         if (projectAction === "list" && target !== undefined) {
-            throw new Error("`project list` 不接受项目参数");
+            throw new Error("`project list` does not accept a project argument");
         }
         if (remaining.length > 2) {
-            throw new Error(`这里不需要这些内容：${remaining.slice(2).join(" ")}`);
+            throw new Error(`Unexpected arguments: ${remaining.slice(2).join(" ")}`);
         }
     } else if (command === "bindings") {
         const actionToken = remaining[0];
         if (actionToken !== "clean") {
             throw new Error(
                 actionToken
-                    ? `不认识这个 bindings 子命令：${actionToken}。可用：clean`
-                    : "`codex-mcp bindings` 后面需要子命令：clean",
+                    ? `Unknown bindings subcommand: ${actionToken}. Available: clean`
+                    : "`codex-mcp bindings` requires a subcommand: clean",
             );
         }
         bindingsAction = "clean";
         target = remaining[1];
         if (remaining.length > 2) {
-            throw new Error(`这里不需要这些内容：${remaining.slice(2).join(" ")}`);
+            throw new Error(`Unexpected arguments: ${remaining.slice(2).join(" ")}`);
         }
     } else if (remaining.length > 0) {
-        throw new Error(`这里不需要这些内容：${remaining.join(" ")}`);
+        throw new Error(`Unexpected arguments: ${remaining.join(" ")}`);
     }
 
     if (requestedHelp) {
         if (argv.length !== 1) {
-            throw new Error("`--help` 不能和其他命令或选项一起使用；运行 `codex-mcp help`");
+            throw new Error("`--help` cannot be combined with other commands or options; run `codex-mcp help`");
         }
         return defaults("help");
     }
     if (requestedVersion) {
         if (argv.length !== 1) {
-            throw new Error("`--version` 不能和其他命令或选项一起使用");
+            throw new Error("`--version` cannot be combined with other commands or options");
         }
         return defaults("version");
     }
@@ -239,7 +239,7 @@ export function parseCliArgs(argv: string[]): CliFlags {
             follow = true;
             seen.add("follow");
         } else {
-            throw new Error("`-f` 只适用于 `logs`（follow）");
+            throw new Error("`-f` only applies to `logs` (follow)");
         }
     }
 
@@ -249,14 +249,14 @@ export function parseCliArgs(argv: string[]): CliFlags {
           ? `bindings:${bindingsAction}`
           : command;
     const allowed = ALLOWED_FLAGS[key];
-    if (!allowed) throw new Error(`内部错误：没有定义命令 ${key} 的选项范围`);
+    if (!allowed) throw new Error(`Internal error: no allowed options defined for command ${key}`);
     for (const flag of seen) {
         if (!allowed.has(flag)) {
-            throw new Error(`${FLAG_LABELS[flag]} 不适用于 \`${displayCommand(command, projectAction ?? bindingsAction)}\``);
+            throw new Error(`${FLAG_LABELS[flag]} does not apply to \`${displayCommand(command, projectAction ?? bindingsAction)}\``);
         }
     }
     if (local && publicMode) {
-        throw new Error("`--local` 和 `--public` 不能同时使用");
+        throw new Error("`--local` and `--public` cannot be used together");
     }
 
     return {
@@ -301,7 +301,7 @@ function resolveCommand(token: string | undefined): CliCommand {
     ) {
         return token;
     }
-    throw new Error(`不认识这个命令：${token}。运行 codex-mcp help 查看帮助`);
+    throw new Error(`Unknown command: ${token}. Run codex-mcp help for usage`);
 }
 
 function isProjectAction(value: string): value is ProjectAction {

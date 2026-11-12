@@ -107,7 +107,7 @@ test("project cleanup failures retain the runtime for a later retry", async () =
     const runtime = runtimes.get("retry", home);
     const shutdown = runtime.processOwners.shutdown.bind(runtime.processOwners);
     runtime.processOwners.shutdown = async () => { throw new Error("temporary cleanup failure"); };
-    await assert.rejects(runtimes.remove("retry"), /清理未完成/);
+    await assert.rejects(runtimes.remove("retry"), /cleanup.*incomplete/);
     assert.equal(runtimes.has("retry"), true);
     runtime.processOwners.shutdown = shutdown;
     await runtimes.remove("retry");

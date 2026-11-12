@@ -20,7 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{ doctor: [fix: boolean]; update: []; cancelOperation: [id: string] }>();
 const tab = ref("check");
 const lines = ref(100);
-const logs = ref("尚未读取日志。\n");
+const logs = ref("Logs have not been loaded yet.\n");
 const logError = ref("");
 let logSource: EventSource | undefined;
 
@@ -30,7 +30,7 @@ async function readLogs(): Promise<void> {
     try {
         lines.value = Math.max(1, Math.min(5000, Math.trunc(lines.value || 100)));
         const result = await api<{ text: string }>(`/api/logs?lines=${lines.value}`);
-        logs.value = result.text || "当前没有运行日志。\n";
+        logs.value = result.text || "No runtime logs available.\n";
         logError.value = "";
     } catch (error) {
         logError.value = friendlyError(error);
@@ -42,10 +42,10 @@ function startLogStream(): void {
     void readLogs();
     logSource = new EventSource(`/api/logs/stream?lines=${lines.value}`);
     logSource.onopen = () => { logError.value = ""; };
-    logSource.onerror = () => { logError.value = "实时日志连接暂时中断，正在自动重连。"; };
+    logSource.onerror = () => { logError.value = "Live log connection interrupted. Reconnecting automatically."; };
     logSource.addEventListener("logs", (event) => {
         const data = JSON.parse((event as MessageEvent).data) as { text?: string };
-        logs.value = data.text || "当前没有运行日志。\n";
+        logs.value = data.text || "No runtime logs available.\n";
     });
 }
 watch(tab, (value) => value === "logs" ? startLogStream() : stopLogStream());
@@ -53,13 +53,13 @@ onBeforeUnmount(stopLogStream);
 
 function friendlyCheck(label: string, detail: string): { title: string; detail: string } {
     const titles: Record<string, string> = {
-        "Node.js": "运行环境", "Git": "Git 工具", "文件搜索": "文件搜索", "配置文件": "本机设置",
-        "外部能力": "可用工具与技能", "连接密码": "连接密码", "公网地址": "ChatGPT 连接地址", "守护进程": "MCP 服务",
+        "Node.js": "Runtime environment", "Git": "Git tools", "File search": "File search", "Configuration file": "Local settings",
+        "External capabilities": "Available tools and skills", "Connection password": "Connection password", "Public address": "ChatGPT connection address", "Daemon": "MCP service",
     };
-    if (label === "连接密码" && /未设置/.test(detail)) return { title: titles[label]!, detail: "尚未设置，请前往“连接”页面完成。" };
-    if (label === "公网地址" && /未设置/.test(detail)) return { title: titles[label]!, detail: "尚未配置，配置后才能从 ChatGPT 网页端连接。" };
-    if (label === "守护进程" && /^pid\s/i.test(detail)) return { title: titles[label]!, detail: "服务正在本机运行。" };
-    if (label === "配置文件") return { title: titles[label]!, detail: "设置文件可以正常读取。" };
+    if (label === "Connection password" && /Not set/.test(detail)) return { title: titles[label]!, detail: "Not set. Open the Connection page to finish setup." };
+    if (label === "Public address" && /Not set/.test(detail)) return { title: titles[label]!, detail: "Not configured. Set this up to connect from ChatGPT on the web." };
+    if (label === "Daemon" && /^pid\s/i.test(detail)) return { title: titles[label]!, detail: "The service is running locally." };
+    if (label === "Configuration file") return { title: titles[label]!, detail: "The settings file is readable." };
     return { title: titles[label] ?? label, detail };
 }
 function tagType(level: "ok" | "warn" | "error"): "success" | "warning" | "danger" { return level === "ok" ? "success" : level === "warn" ? "warning" : "danger"; }
@@ -67,29 +67,29 @@ function tagType(level: "ok" | "warn" | "error"): "success" | "warning" | "dange
 
 <template>
     <div>
-        <div class="page-heading"><h1>系统</h1><p>管理本机能力源、诊断环境、查看日志和更新 codex-mcp。</p></div>
+        <div class="page-heading"><h1>System</h1><p>Manage local capability sources, diagnose the environment, view logs, and update codex-mcp.</p></div>
         <el-card shadow="never">
             <el-tabs v-model="tab">
-                <el-tab-pane label="检查与修复" name="check">
+                <el-tab-pane label="Checks and repairs" name="check">
                     <div class="section-heading">
-                        <div><h2>服务诊断</h2><p>普通检查只读；“检查并修复”只执行安全的本机修复。</p></div>
-                        <div class="inline-actions"><el-button :disabled="busy" @click="emit('doctor', false)">开始检查</el-button><el-button type="primary" :icon="Tools" :disabled="busy" @click="emit('doctor', true)">检查并修复</el-button></div>
+                        <div><h2>Service diagnostics</h2><p>Checks are read-only. Check and repair only performs safe local repairs.</p></div>
+                        <div class="inline-actions"><el-button :disabled="busy" @click="emit('doctor', false)">Run checks</el-button><el-button type="primary" :icon="Tools" :disabled="busy" @click="emit('doctor', true)">Check and repair</el-button></div>
                     </div>
                     <OperationPanel v-if="operation?.kind.startsWith('doctor')" :operation="operation" @cancel="emit('cancelOperation', $event)" />
                     <div v-if="doctor?.fixes?.length || doctor?.warnings?.length || doctor?.report?.checks?.length" style="margin-top: 18px">
-                        <div v-for="fix in doctor?.fixes" :key="fix" class="status-line"><div><strong>已完成修复</strong><div class="muted small">{{ fix }}</div></div><el-tag type="success">完成</el-tag></div>
-                        <div v-for="warning in doctor?.warnings" :key="warning" class="status-line"><div><strong>自动修复未完成</strong><div class="muted small">{{ warning }}</div></div><el-tag type="warning">注意</el-tag></div>
-                        <div v-for="check in doctor?.report?.checks" :key="`${check.label}-${check.detail}`" class="status-line"><div><strong>{{ friendlyCheck(check.label, check.detail).title }}</strong><div class="muted small">{{ friendlyCheck(check.label, check.detail).detail }}</div></div><el-tag :type="tagType(check.level)">{{ check.level === 'ok' ? '正常' : check.level === 'warn' ? '注意' : '处理' }}</el-tag></div>
+                        <div v-for="fix in doctor?.fixes" :key="fix" class="status-line"><div><strong>Repair complete</strong><div class="muted small">{{ fix }}</div></div><el-tag type="success">Done</el-tag></div>
+                        <div v-for="warning in doctor?.warnings" :key="warning" class="status-line"><div><strong>Automatic repair incomplete</strong><div class="muted small">{{ warning }}</div></div><el-tag type="warning">Attention</el-tag></div>
+                        <div v-for="check in doctor?.report?.checks" :key="`${check.label}-${check.detail}`" class="status-line"><div><strong>{{ friendlyCheck(check.label, check.detail).title }}</strong><div class="muted small">{{ friendlyCheck(check.label, check.detail).detail }}</div></div><el-tag :type="tagType(check.level)">{{ check.level === 'ok' ? 'OK' : check.level === 'warn' ? 'Attention' : 'Action needed' }}</el-tag></div>
                     </div>
                 </el-tab-pane>
-                <el-tab-pane label="工具与技能" name="capabilities"><CapabilitiesPanel :setup="setup" :busy="busy" :save-capabilities="saveCapabilities" /></el-tab-pane>
-                <el-tab-pane label="运行日志" name="logs">
-                    <div class="section-heading"><div><h2>运行日志</h2><p>实时查看 Runtime、项目工具和公网连接日志。</p></div><div class="inline-actions"><el-input-number v-model="lines" :min="1" :max="5000" :controls="false" style="width: 100px" /><el-button :icon="Refresh" @click="startLogStream">应用行数</el-button></div></div>
+                <el-tab-pane label="Tools and skills" name="capabilities"><CapabilitiesPanel :setup="setup" :busy="busy" :save-capabilities="saveCapabilities" /></el-tab-pane>
+                <el-tab-pane label="Runtime logs" name="logs">
+                    <div class="section-heading"><div><h2>Runtime logs</h2><p>View live Runtime, project tool, and public connection logs.</p></div><div class="inline-actions"><el-input-number v-model="lines" :min="1" :max="5000" :controls="false" style="width: 100px" /><el-button :icon="Refresh" @click="startLogStream">Apply line count</el-button></div></div>
                     <el-alert v-if="logError" type="error" :closable="false" :title="logError" style="margin-bottom: 12px" />
                     <pre class="log-view">{{ logs }}</pre>
                 </el-tab-pane>
-                <el-tab-pane label="软件更新" name="update">
-                    <div class="section-heading"><div><h2>安装最新版本</h2><p>更新会短暂重启 MCP Runtime 和控制面板，项目与连接设置会保留。</p></div><el-button type="primary" :icon="Download" :disabled="busy" @click="emit('update')">检查并更新</el-button></div>
+                <el-tab-pane label="Software updates" name="update">
+                    <div class="section-heading"><div><h2>Install latest version</h2><p>Updating briefly restarts MCP Runtime and the control panel. Project and connection settings are preserved.</p></div><el-button type="primary" :icon="Download" :disabled="busy" @click="emit('update')">Check and update</el-button></div>
                     <OperationPanel v-if="operation?.kind === 'update'" :operation="operation" @cancel="emit('cancelOperation', $event)" />
                 </el-tab-pane>
             </el-tabs>

@@ -169,12 +169,12 @@ export class DaemonControlClient {
                 [key: string]: unknown;
             };
             if (!response.ok || payload.error) {
-                throw new Error(payload.error ?? `控制请求失败（HTTP ${response.status}）`);
+                throw new Error(payload.error ?? `Control request failed (HTTP ${response.status})`);
             }
             return payload;
         } catch (error) {
             if (error instanceof Error && error.name === "AbortError") {
-                throw new Error("连接守护进程超时");
+                throw new Error("Connection to daemon timed out");
             }
             throw error;
         } finally {
@@ -185,12 +185,12 @@ export class DaemonControlClient {
 
 export function normalizeDaemonStatusPayload(value: unknown): DaemonStatusPayload {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
-        throw new Error("守护进程返回了无效的状态");
+        throw new Error("Daemon returned invalid state");
     }
     const input = value as Record<string, unknown>;
     if (input.controlApiVersion !== DAEMON_CONTROL_API_VERSION) {
         throw new Error(
-            `守护进程控制协议版本不兼容：期望 ${DAEMON_CONTROL_API_VERSION}，实际 ${String(input.controlApiVersion ?? "缺失")}；请更新并重启 codex-mcp`,
+            `Daemon control protocol version incompatible: expected ${DAEMON_CONTROL_API_VERSION}, received ${String(input.controlApiVersion ?? "missing")}; update and restart codex-mcp`,
         );
     }
     if (input.ok !== true || typeof input.version !== "string" ||
@@ -202,15 +202,15 @@ export function normalizeDaemonStatusPayload(value: unknown): DaemonStatusPayloa
         !isRuntimeIntent(input.runtimeIntent) || !isDaemonAuth(input.auth) ||
         !isTunnelObservedStatus(input.tunnel) ||
         !Array.isArray(input.projects)) {
-        throw new Error("守护进程返回了不完整的 1.0 状态；请运行 codex-mcp restart");
+        throw new Error("Daemon returned incomplete 1.0 state; run codex-mcp restart");
     }
     const mode = input.mode;
     if (mode !== "local" && mode !== "public") {
-        throw new Error("守护进程状态中的运行模式无效");
+        throw new Error("Invalid run mode in daemon state");
     }
     const runtimeIntent = input.runtimeIntent;
     if (runtimeIntent.local !== (mode === "local")) {
-        throw new Error("守护进程状态的 mode 与 runtimeIntent 不一致");
+        throw new Error("Daemon state mode does not match runtimeIntent");
     }
     const tunnel = normalizeTunnelObservedStatus(input.tunnel);
     const auth = input.auth;
@@ -241,14 +241,14 @@ function isDaemonAuth(value: unknown): value is { required: boolean; configured:
 
 function normalizeDaemonProject(value: unknown): DaemonStatusPayload["projects"][number] {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
-        throw new Error("守护进程状态包含无效项目");
+        throw new Error("Daemon state contains an invalid project");
     }
     const project = value as Record<string, unknown>;
     if (typeof project.id !== "string" || typeof project.name !== "string" ||
         typeof project.path !== "string" || typeof project.active !== "boolean" ||
         typeof project.addedAt !== "string" || typeof project.lastSeenAt !== "string" ||
         !Number.isInteger(project.boundSessions) || (project.boundSessions as number) < 0) {
-        throw new Error("守护进程状态包含不完整项目");
+        throw new Error("Daemon state contains an incomplete project");
     }
     return {
         id: project.id,
@@ -273,7 +273,7 @@ function normalizeTunnelObservedStatus(
     value: { running?: unknown; state?: unknown; restartCount?: unknown; detail?: unknown } | undefined,
 ): TunnelObservedStatus {
     if (!isTunnelObservedStatus(value)) {
-        throw new Error("守护进程状态包含无效 Tunnel 状态");
+        throw new Error("Daemon state contains invalid Tunnel state");
     }
     const running = value.running;
     const state = value.state;
@@ -324,7 +324,7 @@ export async function contactRunningDaemon(): Promise<DaemonContact | undefined>
     try {
         const client = new DaemonControlClient(state.port, state.controlToken, 10_000, state.host);
         const status = await client.status();
-        if (status.pid !== state.pid) throw new Error("daemon 状态与控制接口 PID 不一致");
+        if (status.pid !== state.pid) throw new Error("Daemon state PID does not match control interface PID");
         return {
             state: {
                 ...state,
@@ -335,7 +335,7 @@ export async function contactRunningDaemon(): Promise<DaemonContact | undefined>
         };
     } catch (error) {
         if (!isProcessAlive(state.pid)) return undefined;
-        throw new Error(`daemon pid ${state.pid} 仍存在，但控制接口不可用；已停止操作：${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`daemon pid ${state.pid} still exists, but the control interface is unavailable; operation stopped: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
@@ -419,7 +419,7 @@ export async function startDaemonForIntent(
     options: { timeoutMs?: number } = {},
 ): Promise<DaemonContact> {
     const controller = new AbortController();
-    const cancel = () => controller.abort(new Error("已取消守护进程启动"));
+    const cancel = () => controller.abort(new Error("Daemon startup cancelled"));
     process.once("SIGINT", cancel);
     process.once("SIGTERM", cancel);
     const spawned = spawnDaemonProcess(intent);
@@ -451,7 +451,7 @@ export async function stopDaemonContact(
         await sleep(200);
     }
     if (isProcessAlive(daemon.state.pid)) {
-        throw new Error(`守护进程 pid ${daemon.state.pid} 在 ${timeoutMs}ms 内没有停止`);
+        throw new Error(`Daemon pid ${daemon.state.pid} did not stop within ${timeoutMs}ms`);
     }
 }
 
@@ -477,7 +477,7 @@ export async function waitForDaemonStart(
     options: { timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<DaemonContact> {
     const deadline = Date.now() + (options.timeoutMs ?? DAEMON_START_TIMEOUT_MS);
-    let lastError = "守护进程没有写入状态文件";
+    let lastError = "Daemon did not write a state file";
     let observedExit: Awaited<SpawnedDaemonProcess["exited"]> | undefined;
     void exited?.then((result) => {
         observedExit = result;
@@ -488,24 +488,24 @@ export async function waitForDaemonStart(
         const state = loadDaemonState();
         if (!isProcessAlive(pid)) {
             throw new Error(
-                "守护进程启动后立即退出了。请查看 ~/.codex-mcp/logs 下的日志文件了解原因。",
+                "Daemon exited immediately after startup. Check log files in ~/.codex-mcp/logs for details.",
             );
         }
         if (state) {
-            if (state.pid !== pid) throw new Error(`检测到另一个守护进程 pid ${state.pid}，拒绝把它当成本次启动结果`);
+            if (state.pid !== pid) throw new Error(`Detected another daemon pid ${state.pid}; refusing to treat it as the result of this startup`);
             try {
                 const client = new DaemonControlClient(state.port, state.controlToken, 2_000, state.host);
                 const status = await client.status();
                 options.signal?.throwIfAborted();
                 if (state.pid === pid && status.pid === pid) return { state, client };
-                lastError = `状态文件 pid ${state.pid} 与本次 pid ${pid} 不一致`;
+                lastError = `State file pid ${state.pid} does not match startup pid ${pid}`;
             } catch (error) {
                 lastError = error instanceof Error ? error.message : String(error);
             }
         }
         await (exited ? Promise.race([sleep(500), exited]) : sleep(500));
     }
-    throw new Error(`守护进程启动超时：${lastError}`);
+    throw new Error(`Daemon startup timed out: ${lastError}`);
 }
 
 function daemonExitedError(
@@ -514,10 +514,10 @@ function daemonExitedError(
     const outcome = result.error
         ? result.error
         : result.signal
-          ? `信号 ${result.signal}`
-          : `退出代码 ${result.code ?? "unknown"}`;
+          ? `Signal ${result.signal}`
+          : `Exit code ${result.code ?? "unknown"}`;
     return new Error(
-        `守护进程启动后立即退出（${outcome}）。请查看 ~/.codex-mcp/logs 下的日志文件了解原因。`,
+        `Daemon exited immediately after startup (${outcome}). Check log files in ~/.codex-mcp/logs for details.`,
     );
 }
 
@@ -547,7 +547,7 @@ export async function withDaemonLifecycleLock<T>(run: () => Promise<T>): Promise
             release();
         }
     }
-    throw new Error("另一个 codex-mcp 正在执行启动、停止或 setup；等待 30 秒后仍未完成，请稍后再试");
+    throw new Error("Another codex-mcp is starting, stopping, or running setup. It has not finished after 30 seconds; try again later");
 }
 
 function tryAcquireLock(): () => void {

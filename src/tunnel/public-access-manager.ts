@@ -68,7 +68,7 @@ export async function configurePreparedPublicAccess(
         let previousIntent = initialDaemon?.state.runtimeIntent;
 
         options.signal?.throwIfAborted();
-        options.onPhase?.("本机端口预检");
+        options.onPhase?.("Local port preflight");
         // If no supported daemon owns the origin port, reject an unknown port
         // conflict before creating or changing any Cloudflare candidate resource.
         // A healthy daemon stays online while the candidate is prepared.
@@ -82,7 +82,7 @@ export async function configurePreparedPublicAccess(
         let daemonStopped = false;
         let committed = false;
         try {
-            options.onPhase?.("准备公网候选配置");
+            options.onPhase?.("Prepare candidate public configuration");
             candidate = await prepareCandidate({ host, port });
             options.signal?.throwIfAborted();
 
@@ -90,12 +90,12 @@ export async function configurePreparedPublicAccess(
             if (daemon) {
                 previousIntent = daemon.state.runtimeIntent;
                 stopAttempted = daemon;
-                printInfo(`公网候选配置已准备，正在短暂暂停后台服务（pid ${daemon.state.pid}）…`);
+                printInfo(`Candidate public configuration ready. Briefly pausing background service (pid ${daemon.state.pid})…`);
                 await stopDaemonContact(daemon);
                 daemonStopped = true;
             } else if (initialDaemon) {
                 daemonStopped = true;
-                printWarning("原后台服务在设置过程中已退出；完成后会按原运行模式重新启动。");
+                printWarning("The previous background service exited during setup. It will restart in its original mode when setup finishes.");
             }
 
             applyStarted = true;
@@ -107,12 +107,12 @@ export async function configurePreparedPublicAccess(
             committed = true;
             if (previousIntent) {
                 try {
-                    options.onPhase?.("恢复后台服务");
+                    options.onPhase?.("Restore background service");
                     await restartAfterSetup(previousIntent);
                 } catch (restartError) {
                     throw new Error(
-                        `公网配置已经提交并验证成功，但后台服务恢复失败：${readableError(restartError)}。` +
-                        "请运行 `codex-mcp status` 和 `codex-mcp doctor` 检查，然后运行 `codex-mcp start` 重新启动。",
+                        `Public configuration committed and verified, but background service restoration failed: ${readableError(restartError)}.` +
+                        "Run `codex-mcp status` and `codex-mcp doctor` to inspect, then `codex-mcp start` to restart.",
                     );
                 }
             }
@@ -123,7 +123,7 @@ export async function configurePreparedPublicAccess(
                 try {
                     await discardTunnelSetupCandidate(candidate);
                 } catch (discardError) {
-                    recoveryErrors.push(`candidate 清理失败：${readableError(discardError)}`);
+                    recoveryErrors.push(`Candidate cleanup failed: ${readableError(discardError)}`);
                 }
             }
             if (previousIntent && !committed && (daemonStopped || stopAttempted)) {
@@ -131,18 +131,18 @@ export async function configurePreparedPublicAccess(
                     ? isProcessAlive(stopAttempted.state.pid)
                     : false;
                 if (originalStillAlive) {
-                    printWarning("公网配置没有完成；原后台服务仍在运行，无需重复启动。");
+                    printWarning("Public setup incomplete. The previous background service is still running; no restart is needed.");
                 } else {
                     try {
                         await restartAfterSetup(previousIntent);
-                        printWarning("公网配置没有完成，已恢复原后台服务。");
+                        printWarning("Public setup incomplete. Previous background service restored.");
                     } catch (restartError) {
-                        recoveryErrors.push(`原后台服务恢复失败：${readableError(restartError)}`);
+                        recoveryErrors.push(`Previous background service restoration failed: ${readableError(restartError)}`);
                     }
                 }
             }
             if (recoveryErrors.length > 0) {
-                throw new Error(`${readableError(error)}；${recoveryErrors.join("；")}`);
+                throw new Error(`${readableError(error)}; ${recoveryErrors.join("; ")}`);
             }
             throw error;
         }
@@ -153,7 +153,7 @@ export async function configurePreparedPublicAccess(
 export async function checkPublicAccess(): Promise<SetupPublicVerificationResult> {
     const config = loadUserConfig();
     const access = config.publicAccess;
-    if (!access) throw new Error("还没有设置公网连接");
+    if (!access) throw new Error("Public access has not been configured");
     const host = config.host ?? "127.0.0.1";
     const port = config.port ?? 3920;
     const committed = await loadCommittedTunnelSetup(config, host, port);
@@ -166,13 +166,13 @@ export async function checkPublicAccess(): Promise<SetupPublicVerificationResult
         return await verifyRunningPublicRoute(access.domain, host, port);
     }
     if (portState === "occupied") {
-        throw new Error(`本机端口 ${port} 已被其它程序占用，无法检查公网连接`);
+        throw new Error(`Local port ${port} is in use by another program; cannot check public access`);
     }
     return await verifySetupPublicRoute(committed, host, port, {});
 }
 
 async function restartAfterSetup(intent: RuntimeIntent): Promise<DaemonContact> {
-    printInfo("正在按原运行模式恢复后台服务…");
+    printInfo("Restoring background service in its original mode…");
     return await startDaemonForIntent(intent);
 }
 

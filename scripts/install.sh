@@ -34,34 +34,34 @@ success() {
 
 fail() {
   if [ -t 2 ] && [ -z "${NO_COLOR+x}" ]; then
-    printf '\033[31m✗ 安装失败：%s\033[0m\n' "$1" >&2
+    printf '\033[31m✗ Installation failed: %s\033[0m\n' "$1" >&2
   else
-    printf '✗ 安装失败：%s\n' "$1" >&2
+    printf '✗ Installation failed: %s\n' "$1" >&2
   fi
   exit 1
 }
 
-command -v node >/dev/null 2>&1 || fail "没有找到 Node.js。请先安装 Node.js 22 或更高版本。"
-command -v npm >/dev/null 2>&1 || fail "没有找到 npm。重新安装 Node.js 通常可以解决。"
+command -v node >/dev/null 2>&1 || fail "Node.js not found. Install Node.js 22 or later first."
+command -v npm >/dev/null 2>&1 || fail "npm not found. Reinstalling Node.js usually fixes this."
 
 NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])')"
-[ "$NODE_MAJOR" -ge 22 ] || fail "当前 Node.js 版本是 $(node -v)，需要 22 或更高版本。"
+[ "$NODE_MAJOR" -ge 22 ] || fail "Current Node.js version is $(node -v); version 22 or later is required."
 
 if [ "${CODEX_MCP_UPDATE:-}" = "1" ]; then
-  info "正在更新 codex-mcp…"
+  info "Updating codex-mcp…"
 else
-  info "正在安装 codex-mcp…"
+  info "Installing codex-mcp…"
 fi
 mkdir -p "$INSTALL_ROOT"
 npm install --global --prefix "$INSTALL_ROOT" "$PACKAGE"
 
-[ -x "$BIN_DIR/codex-mcp" ] || fail "安装完成，但没有找到 codex-mcp 命令。"
+[ -x "$BIN_DIR/codex-mcp" ] || fail "Installation complete, but the codex-mcp command was not found."
 
 TOOLS_CLI="$INSTALL_ROOT/lib/node_modules/@meesii/codex-mcp/dist/managed-tools/cli.js"
-[ -f "$TOOLS_CLI" ] || fail "安装完成，但缺少运行组件管理程序。"
-info "正在准备必要组件…"
-node "$TOOLS_CLI" bootstrap || fail "必要组件准备失败。请检查网络后重新运行安装。"
-success "必要组件已准备"
+[ -f "$TOOLS_CLI" ] || fail "Installation complete, but the runtime tool manager is missing."
+info "Preparing required tools…"
+node "$TOOLS_CLI" bootstrap || fail "Required tool preparation failed. Check your network and rerun installation."
+success "Required tools ready"
 
 add_path_line() {
   profile="$1"
@@ -90,14 +90,14 @@ export PATH="$BIN_DIR:$PATH"
 
 VERSION="$(codex-mcp --version 2>/dev/null || true)"
 say ""
-success "codex-mcp ${VERSION:-已安装}"
-success "命令目录已加入 PATH：${BIN_DIR}"
+success "codex-mcp ${VERSION:-Installed}"
+success "Command directory added to PATH: ${BIN_DIR}"
 say ""
 if [ "${CODEX_MCP_UPDATE:-}" = "1" ]; then
-  success "更新完成。配置、连接密码和 Tunnel 信息保持不变。"
-  warn "如果 codex-mcp 服务正在运行，请重启它；现有进程不会自动加载更新后的 core tool schema。"
+  success "Update complete. Configuration, connection password, and Tunnel settings are preserved."
+  warn "Restart any running codex-mcp service; existing processes do not automatically load the updated core tool schema."
 else
-  info "第一次使用推荐运行：codex-mcp open"
-  info "也可以进入项目目录直接运行：codex-mcp start"
-  warn "如果当前终端还找不到 codex-mcp，请重新打开一个终端窗口。"
+  info "For first use, run: codex-mcp open"
+  info "Or run in a project directory: codex-mcp start"
+  warn "If this terminal cannot find codex-mcp, open a new terminal window."
 fi

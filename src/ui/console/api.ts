@@ -102,7 +102,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
     try {
         data = await response.json() as { error?: string };
     } catch {
-        throw new Error("控制台没有返回可读取的结果");
+        throw new Error("The console did not return a readable result");
     }
     if (!response.ok || data.error) throw new Error(data.error ?? `HTTP ${response.status}`);
     return data as T;
@@ -110,14 +110,14 @@ export async function api<T>(path: string, options: { method?: string; body?: un
 
 export function friendlyError(error: unknown): string {
     const message = error instanceof Error ? error.message : String(error);
-    if (/unauthorized|session/i.test(message)) return "页面连接已失效，请刷新后重试。";
-    if (/invalid origin|csrf/i.test(message)) return "安全校验未通过，请刷新页面后重试。";
-    if (/EADDRINUSE|address already in use/i.test(message)) return "服务端口正在被其他程序使用，请先停止重复运行的服务。";
-    if (/password.*12|至少 12/i.test(message)) return "连接密码至少需要 12 个字符。";
-    if (/not configured|还没有配置公网/i.test(message)) return "请先完成 ChatGPT 连接设置。";
-    if (/timeout|超时/i.test(message)) return "操作等待超时，请检查网络后重试。";
+    if (/unauthorized|session/i.test(message)) return "The page session has expired. Refresh and try again.";
+    if (/invalid origin|csrf/i.test(message)) return "Security check failed. Refresh the page and try again.";
+    if (/EADDRINUSE|address already in use/i.test(message)) return "The service port is in use by another program. Stop the duplicate service first.";
+    if (/password.*12|at least 12/i.test(message)) return "The connection password must contain at least 12 characters.";
+    if (/not configured|public access is not configured/i.test(message)) return "Complete ChatGPT connection setup first.";
+    if (/timeout|timed out/i.test(message)) return "The operation timed out. Check your network and try again.";
     if (/failed to fetch|fetch failed|networkerror|network request failed/i.test(message)) {
-        return "Web Console 与本机 Controller 的连接已中断；如果刚执行了 shutdown，请运行 codex-mcp open 重新打开。";
+        return "Web Console lost its connection to the local Controller. If you just ran shutdown, run codex-mcp open to reopen it.";
     }
     return message;
 }

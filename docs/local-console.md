@@ -1,10 +1,10 @@
-# 本机控制台设计
+# Local Console Design
 
-## 产品定位
+## Product role
 
-codex-mcp Web 不是只读状态页，而是 CLI 的本机 GUI 控制面。除内部 `daemon` 入口和机器输出格式外，所有用户级 CLI 能力都必须有对应 Web 操作，并且 CLI 与 Web 调用同一套业务 service。
+codex-mcp Web is the CLI's local GUI control plane. Except for internal `daemon` entry points and machine-readable output formatting, every user-level CLI capability must have a Web operation. CLI and Web call the same business services.
 
-## 进程模型
+## Process model
 
 ```text
 Browser
@@ -23,81 +23,77 @@ Local Controller
        └─ Cloudflare Tunnel
 ```
 
-`stop` 只停止 MCP Runtime/Tunnel，Controller 继续运行，因此网页仍能重新 `start`。Controller 永远只监听 loopback，不通过 Cloudflare 暴露。
+`stop` stops only MCP Runtime/Tunnel. Controller stays online so the page can start Runtime again. Controller always listens on loopback and is never exposed through Cloudflare.
 
-## 共享业务层
+## Shared business layer
 
-业务动作从 CLI formatter / terminal prompt 中下沉为无 UI service：
+Move business actions out of CLI formatters/terminal prompts into services without UI dependencies:
 
-- Runtime：start / stop / restart / status / runtime intent
-- Project：list / add / remove / info
-- Doctor：check / fix
-- Auth：password status / set password
-- Setup：inspect / public access / Cloudflare login and selection / capabilities / verification
-- Logs：tail / follow
-- Update：check/install，并在需要时重启 controller/runtime
+- Runtime: start / stop / restart / status / runtime intent.
+- Project: list / add / remove / info.
+- Doctor: check / fix.
+- Auth: password status / set password.
+- Setup: inspect / public access / Cloudflare login and selection / capabilities / verification.
+- Logs: tail / follow.
+- Update: check/install, restarting Controller/Runtime when necessary.
 
-CLI 负责参数解析与终端交互；Web 负责表单、状态和进度展示。
+CLI owns argument parsing and terminal interaction; Web owns forms, state, and progress presentation.
 
-## Web 功能等价矩阵
+## Web feature parity
 
-- `start` 与 `--local` / `--no-tunnel` / `--tunnel-logs` / `--root`
-- `stop`, `restart`, `status`
-- `project list/add/remove/info`
-- `logs --lines`, `logs --follow`
-- `doctor`, `doctor --fix`
-- `setup` 全流程，包括 Cloudflare 登录/域名/Tunnel/DNS/公网验证和外部能力配置
-- `auth`
-- `update`
-- `version`, `help`
+- `start` with `--local`, `--no-tunnel`, `--tunnel-logs`, and `--root`.
+- `stop`, `restart`, `status`.
+- `project list/add/remove/info`.
+- `logs --lines`, `logs --follow`.
+- `doctor`, `doctor --fix`.
+- Complete `setup`, including Cloudflare login, domains, Tunnel, DNS, public verification, and external capabilities.
+- `auth`, `update`, `version`, and `help`.
 
-内部 `daemon` 命令不提供 Web 按钮；`status --json` 是 CLI 表示形式，不是独立业务能力。
+Internal `daemon` has no Web button. `status --json` is a CLI representation, not a separate business capability.
 
-## 长任务
+## Long operations
 
-setup/update/doctor 等操作不能占用单个长 HTTP 请求。Controller 使用 operation 模型：创建 operation 后返回 id，通过状态查询或 SSE 推送 phase/result/error；支持取消可取消的操作。
+Setup/update/doctor must not occupy a single long HTTP request. Controller creates an operation and returns its ID. Polling or SSE reports phases, results, and errors; cancellable operations support cancellation. Log following uses SSE.
 
-日志 follow 使用 SSE。
+## Local security boundary
 
-## 本机安全边界
+- Loopback-only Controller socket and strict Host/Origin checks.
+- Random HttpOnly + SameSite=Strict browser session cookie.
+- CSRF tokens for mutations; CLI uses the random control token in Controller state.
+- Cloudflare credentials, OAuth tokens, and password hashes never reach the frontend.
+- Explicit UI confirmation for dangerous/destructive actions.
 
-- controller socket 仅 loopback
-- 严格 Host/Origin 校验
-- 浏览器使用随机 HttpOnly + SameSite=Strict session cookie
-- mutation 使用 CSRF token
-- CLI 使用 controller state 中的随机 control token
-- Cloudflare credential、OAuth token、密码哈希不返回前端
-- 危险/破坏性操作在 UI 明确确认
+Controller management APIs are separate from the public MCP/OAuth listener and never mounted on public routes.
 
-Controller management API 与公网 MCP/OAuth listener 分离，公网 route 永远不挂载 management API。
+## UI direction
 
-## UI 方向
+The original design proposed a quiet, content-first local workspace resembling ChatGPT, with Home, Projects, and Connect ChatGPT navigation and maintenance through technical details or Check and repair.
 
-控制台面向项目使用者，采用接近 ChatGPT 网页端的本机工作区风格：安静、轻量、内容优先。主导航收敛为“首页、项目、连接 ChatGPT”，系统维护从技术详情进入，也可通过首页“检查并修复”直接打开。
+Historical design proposal (the current implementation follows the Vue 3 / Element Plus rules in `AGENTS.md`):
 
-- 前端使用 React、Tailwind CSS 和基于 Radix primitives 的 shadcn/ui 组件模式；脚本和样式在发布时打包到 `dist/ui/console`，不依赖 CDN。
-- 画布使用 `#ffffff`，侧栏使用 `#f9f9f9`，主文字为 `#0d0d0d`，次要文字为 `#6f6f6f`；绿色只表示服务正常或操作成功。
-- 首页展示“选择项目 → 连接 ChatGPT → 验证连接”三步引导、可用项目和可复制的连接地址，主要按钮指向下一步。
-- 普通界面使用“控制面板、MCP 服务、公网连接、连接密码、可用工具与技能”等用户语言；PID、运行模式和内部连接状态只在技术详情中显示。
-- 项目添加、连接设置和危险操作使用 Dialog；手机端导航和技术详情使用 Sheet；操作反馈统一使用 Toast 和进度面板。
-- 深色模式使用 `#212121` 画布、`#171717` 侧栏和 `#2f2f2f` 面板。手机端侧栏变为左侧抽屉，页面和表单均折为单栏。
-- 所有交互元素提供清晰的键盘焦点，并尊重 `prefers-reduced-motion`。
+- React, Tailwind CSS, and shadcn/ui patterns based on Radix primitives, with scripts/styles bundled into `dist/ui/console` and no CDN dependency.
+- Light canvas `#ffffff`, sidebar `#f9f9f9`, primary text `#0d0d0d`, secondary text `#6f6f6f`; green reserved for healthy services/success.
+- Home guides users through Choose project → Connect ChatGPT → Verify connection, shows available projects and a copyable address, and emphasizes the next action.
+- Use plain labels such as control panel, MCP service, public connection, connection password, and available tools and skills. Show PID, mode, and internal status in technical details.
+- Dialogs for adding projects, connection setup, and dangerous actions; mobile navigation/details use a sheet; feedback uses toasts and a progress panel.
+- Dark canvas `#212121`, sidebar `#171717`, panels `#2f2f2f`; mobile uses a left navigation drawer and single-column forms/pages.
+- Clear keyboard focus and respect for `prefers-reduced-motion`.
 
-## 项目选择与连接检查
+## Project selection and connection checks
 
-- “添加项目”优先打开系统文件夹选择器：macOS 使用 osascript，Windows 使用 FolderBrowserDialog，Linux 使用 zenity/kdialog。取消不会注册项目，浏览器取消请求会结束等待进程；系统不支持时可选推荐项目或展开手动路径。
-- 推荐列表包含仍存在的已停用项目，以及常见开发目录中的浅层项目候选；最多展示 20 项，不递归扫描用户目录。只选择候选不会注册，仍需点击“添加项目”。
-- 文件夹在服务端验证真实性、目录类型和可读权限。普通 Web 添加沿用现有运行方式，未启动时先以本机模式启动，避免添加项目意外切换公网服务。
-- 项目页展示持久会话选择记录、最近使用时间和匿名编号；这些是历史绑定，不代表在线状态，不暴露原始客户端标识。
-- “测试连接”通过正在运行的 MCP handler 完成 initialize、tools/list 和只读 project_control(list)，检查公网地址是否指向同一实例并返回登录保护挑战。内部工具探测只接受固定操作，管理接口受本机控制令牌保护。
-- 检查不模拟 ChatGPT 账户授权，也不把已配置地址视为已连接。最终账户授权仍需在 ChatGPT 中完成；结果页明确说明检查范围，配置或运行实例变化后清除旧结果。
+- Add project prefers the native folder picker: osascript on macOS, FolderBrowserDialog on Windows, zenity/kdialog on Linux. Cancel does not register a project. Aborting the browser request ends the waiting process; unsupported systems offer suggestions or manual paths.
+- Suggestions include existing inactive projects and shallow candidates in common development folders, up to 20 items without recursive home scanning. Selection alone does not register a project; Add project remains required.
+- Server validation checks folder existence, directory type, and readability. Ordinary Web addition preserves the current mode; when stopped, it starts locally first, avoiding accidental public mode switches.
+- Projects show persisted session selections, last use, and anonymous IDs. These are historical bindings, not online status, and expose no raw client identifiers.
+- Connection checks use the running MCP handler for initialize, tools/list, and read-only project_control(list), then verify that the public address reaches the same instance and returns an authentication challenge. Internal probes accept only fixed actions; management endpoints require the local control token.
+- Checks do not simulate ChatGPT account authorization or treat a configured address as connected. Complete account authorization in ChatGPT. Results explain their scope and are cleared when configuration or runtime instance changes.
 
-## 验收标准
+## Acceptance criteria
 
-1. Runtime 停止后 Web Console 仍可访问并重新启动 Runtime。
-2. CLI 用户级能力都有 Web 对应入口。
-3. CLI/Web 不复制核心业务逻辑。
-4. Web mutation 无 controller token 泄漏，跨站请求不能触发操作。
-5. setup/update/日志 follow 有明确进度与失败信息。
-6. 现有 MCP/OAuth/SSRF/项目隔离/Tunnel transaction 安全回归不退化。
-7. Node 22 + 当前 Node typecheck/test/package smoke 通过。
+1. Web Console remains available after Runtime stops and can restart it.
+2. User-level CLI capabilities have Web equivalents.
+3. CLI/Web share core business logic.
+4. Web mutations leak no Controller token; cross-site requests cannot trigger actions.
+5. Setup/update/log following show clear progress and errors.
+6. Existing MCP/OAuth/SSRF/project isolation/Tunnel transaction regressions remain intact.
+7. Typecheck, tests, and package smoke pass on Node 22 and the current Node version.

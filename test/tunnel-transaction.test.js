@@ -90,7 +90,7 @@ test("old managed DNS cleanup failure does not roll back a verified new route", 
 for (const phase of ["probe", "commit"]) {
     test(`Tunnel ${phase} failure restores DNS before deleting the candidate and preserves previous config`, async () => {
         const f = fixture(phase);
-        await assert.rejects(applyTunnelSetup(candidate, f.operations), /公网配置失败/);
+        await assert.rejects(applyTunnelSetup(candidate, f.operations), /Public access setup failed/);
         assert.equal(f.committed(), false);
         assert.equal(f.dns(), before);
         assert.ok(f.events.indexOf("restore") > f.events.indexOf("cutover"));
@@ -101,7 +101,7 @@ for (const phase of ["probe", "commit"]) {
 
 test("failed DNS compensation retains a referenced candidate and reports partial state", async () => {
     const f = fixture("restore");
-    await assert.rejects(applyTunnelSetup(candidate, f.operations), /部分变更状态/);
+    await assert.rejects(applyTunnelSetup(candidate, f.operations), /partially modified/);
     assert.equal(f.committed(), false);
     assert.equal(f.dns(), after);
     assert.equal(f.events.at(-1), "retain-candidate");

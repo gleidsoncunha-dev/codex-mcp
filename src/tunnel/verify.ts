@@ -33,7 +33,7 @@ export async function verifyTunnelRoute(
 ): Promise<void> {
     const mcpUrl = new URL(publicMcpUrl);
     if (!options.allowPrivate && mcpUrl.protocol !== "https:") {
-        throw new Error("公网连接必须使用 HTTPS");
+        throw new Error("Public access must use HTTPS");
     }
     if (!probe.path.startsWith("/.well-known/codex-mcp-tunnel-check/")) {
         throw new Error("Invalid tunnel verification probe path");
@@ -50,7 +50,7 @@ export async function verifyTunnelRoute(
     );
     const retryDelayMs = positiveSafeInteger(options.retryDelayMs ?? 500, 0, "retryDelayMs");
     const deadline = Date.now() + totalTimeoutMs;
-    let lastDetail = "没有收到响应";
+    let lastDetail = "No response received";
 
     while (Date.now() < deadline) {
         throwIfAborted(options.signal);
@@ -67,10 +67,10 @@ export async function verifyTunnelRoute(
             });
             const body = response.body.toString("utf8");
             if (response.status === 200 && body === probe.expectedBody) return;
-            lastDetail = `HTTP ${response.status}，但返回的不是当前 codex-mcp 实例`;
+            lastDetail = `HTTP ${response.status}, but the response is not from this codex-mcp instance`;
         } catch (error) {
             throwIfAborted(options.signal);
-            lastDetail = error instanceof Error ? error.message : "未知网络错误";
+            lastDetail = error instanceof Error ? error.message : "Unknown network error";
         }
 
         const delayMs = Math.min(retryDelayMs, Math.max(0, deadline - Date.now()));
@@ -83,14 +83,14 @@ export async function verifyTunnelRoute(
 }
 
 export function tunnelVerificationFailureMessage(origin: string, detail: string): string {
-    const prefix = `无法通过公网地址访问当前 codex-mcp（${origin}）：${detail}。`;
+    const prefix = `Cannot reach this codex-mcp instance at public address ${origin}: ${detail}.`;
     if (isTlsHandshakeFailure(detail)) {
         return (
             prefix +
-            "HTTPS TLS 握手在到达 Tunnel 之前失败。若使用 Cloudflare 默认 Universal SSL，请确认 hostname 仅比所选 Cloudflare 域名多一级（例如 codex-mcp.example.com，而不是 codex.mcp.example.com）；否则请为该 hostname 配置可覆盖它的 Cloudflare Edge Certificate。"
+            "HTTPS TLS handshake failed before reaching the Tunnel. With Cloudflare default Universal SSL, use a hostname only one level below the selected domain (for example, codex-mcp.example.com rather than codex.mcp.example.com). Otherwise configure a Cloudflare Edge Certificate covering the hostname."
         );
     }
-    return prefix + "请检查域名是否指向当前 Tunnel，以及 Tunnel 是否已经启动。";
+    return prefix + "Check that the domain points to this Tunnel and that the Tunnel is running.";
 }
 
 function isTlsHandshakeFailure(detail: string): boolean {
@@ -131,5 +131,5 @@ function throwIfAborted(signal?: AbortSignal): void {
 }
 
 function cancellationError(signal?: AbortSignal): Error {
-    return signal?.reason instanceof Error ? signal.reason : new Error("已取消公网配置");
+    return signal?.reason instanceof Error ? signal.reason : new Error("Public access setup cancelled");
 }

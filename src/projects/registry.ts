@@ -83,7 +83,7 @@ export class ProjectRegistry {
             const collision = this.projects.find((item) => item.id === id && item.path !== canonicalPath);
             if (collision) {
                 throw new Error(
-                    `项目 ID 冲突：${canonicalPath} 与 ${collision.path} 生成了相同 ID ${id}；已拒绝注册以避免跨项目误路由`,
+                    `Project ID collision: ${canonicalPath} and ${collision.path} generated the same ID ${id}; registration refused to prevent routing across projects`,
                 );
             }
             const entry: RegisteredProject = {

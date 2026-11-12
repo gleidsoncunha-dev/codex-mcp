@@ -98,7 +98,7 @@ try {
     assert.equal(stopped.controller.pid, status.controller.pid);
     const panel = await fetch(stopped.controller.panelUrl);
     assert.equal(panel.status, 200);
-    assert.match(await panel.text(), /codex-mcp 本机工作区/);
+    assert.match(await panel.text(), /codex-mcp Local workspace/);
     const consoleScript = await fetch(new URL("/console/app.js", stopped.controller.panelUrl));
     const consoleStyle = await fetch(new URL("/console/app.css", stopped.controller.panelUrl));
     assert.equal(consoleScript.status, 200);

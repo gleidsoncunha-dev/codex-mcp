@@ -116,11 +116,11 @@ export class LocalControllerClient {
             });
             const payload = await response.json() as { error?: unknown; [key: string]: unknown };
             if (!response.ok || typeof payload.error === "string") {
-                throw new Error(typeof payload.error === "string" ? payload.error : `Controller 请求失败（HTTP ${response.status}）`);
+                throw new Error(typeof payload.error === "string" ? payload.error : `Controller request failed (HTTP ${response.status})`);
             }
             return payload;
         } catch (error) {
-            if (error instanceof Error && error.name === "AbortError") throw new Error("连接本机 Controller 超时");
+            if (error instanceof Error && error.name === "AbortError") throw new Error("Connection to local Controller timed out");
             throw error;
         } finally {
             clearTimeout(timer);
@@ -140,12 +140,12 @@ export async function contactRunningController(): Promise<ControllerContact | un
         const probe = new LocalControllerClient(state, 5_000);
         const status = await probe.status();
         if (status.apiVersion !== CONTROLLER_API_VERSION || status.pid !== state.pid) {
-            throw new Error("Controller 状态文件与控制接口不一致");
+            throw new Error("Controller state file does not match its control interface");
         }
         return { state, client: new LocalControllerClient(state) };
     } catch (error) {
         if (!isProcessAlive(state.pid)) return undefined;
-        throw new Error(`Controller pid ${state.pid} 仍存在，但本机控制接口不可用：${readableError(error)}`);
+        throw new Error(`Controller pid ${state.pid} still exists, but its local control interface is unavailable: ${readableError(error)}`);
     }
 }
 
@@ -236,10 +236,10 @@ async function waitForControllerStart(
     const deadline = Date.now() + CONTROLLER_START_TIMEOUT_MS;
     let exitResult: Awaited<typeof exited> | undefined;
     void exited.then((value) => { exitResult = value; });
-    let lastError = "Controller 尚未写入状态";
+    let lastError = "Controller has not written its state yet";
     while (Date.now() < deadline) {
-        if (exitResult) throw new Error(`Controller 启动后立即退出：${describeExit(exitResult)}`);
-        if (!isProcessAlive(pid)) throw new Error("Controller 启动后立即退出");
+        if (exitResult) throw new Error(`Controller exited immediately after startup: ${describeExit(exitResult)}`);
+        if (!isProcessAlive(pid)) throw new Error("Controller exited immediately after startup");
         let state: ControllerState | undefined;
         try {
             state = loadControllerState();
@@ -255,11 +255,11 @@ async function waitForControllerStart(
                 lastError = readableError(error);
             }
         } else if (state && !replacing && isProcessAlive(state.pid)) {
-            throw new Error(`检测到另一个 Controller pid ${state.pid}`);
+            throw new Error(`Detected another Controller pid ${state.pid}`);
         }
         await sleep(200);
     }
-    throw new Error(`Controller 启动超时：${lastError}`);
+    throw new Error(`Controller startup timed out: ${lastError}`);
 }
 
 export async function withControllerLifecycleLock<T>(run: () => Promise<T>): Promise<T> {
@@ -283,7 +283,7 @@ export async function withControllerLifecycleLock<T>(run: () => Promise<T>): Pro
             release();
         }
     }
-    throw new Error("另一个 codex-mcp 正在启动或替换本机 Controller；等待 30 秒后仍未完成");
+    throw new Error("Another codex-mcp is starting or replacing the local Controller; it has not finished after 30 seconds");
 }
 
 function tryAcquireControllerLock(): () => void {
@@ -339,8 +339,8 @@ function isProcessAlive(pid: number): boolean {
 
 function describeExit(result: { code: number | null; signal: NodeJS.Signals | null; error?: string }): string {
     if (result.error) return result.error;
-    if (result.signal) return `信号 ${result.signal}`;
-    return `退出码 ${result.code ?? "unknown"}`;
+    if (result.signal) return `Signal ${result.signal}`;
+    return `Exit code ${result.code ?? "unknown"}`;
 }
 
 function readableError(error: unknown): string {

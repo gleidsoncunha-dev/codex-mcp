@@ -160,7 +160,7 @@ export class CodexClientsStore implements OAuthRegisteredClientsStore {
             if (response.status !== 200) {
                 logOAuthWarning(
                     "oauth_cimd_http_error",
-                    `OAuth 客户端元数据请求返回 HTTP ${response.status}：${url.origin}${url.pathname}`,
+                    `OAuth client metadata request returned HTTP ${response.status}: ${url.origin}${url.pathname}`,
                     { status: response.status },
                 );
                 return undefined;
@@ -172,7 +172,7 @@ export class CodexClientsStore implements OAuthRegisteredClientsStore {
             if (!client) {
                 logOAuthWarning(
                     "oauth_cimd_invalid_metadata",
-                    `OAuth 客户端元数据校验失败：${url.origin}${url.pathname}`,
+                    `OAuth client metadata validation failed: ${url.origin}${url.pathname}`,
                 );
                 return undefined;
             }
@@ -183,7 +183,7 @@ export class CodexClientsStore implements OAuthRegisteredClientsStore {
         } catch (error) {
             logOAuthWarning(
                 "oauth_cimd_fetch_failed",
-                `OAuth 客户端元数据请求失败：${url.origin}${url.pathname} · ${
+                `OAuth client metadata request failed: ${url.origin}${url.pathname} · ${
                     error instanceof Error ? error.message : "unknown error"
                 }`,
                 { reason: error instanceof Error ? error.name : "unknown" },
@@ -248,7 +248,7 @@ export class CodexOAuthProvider implements OAuthServerProvider {
         } catch (error) {
             logOAuthWarning(
                 "oauth_private_key_jwt_rejected",
-                `OAuth private_key_jwt 已拒绝：${client.client_id} · ${
+                `OAuth private_key_jwt rejected: ${client.client_id} · ${
                     error instanceof Error ? error.message : "unknown error"
                 }`,
                 { reason: error instanceof Error ? error.name : "unknown" },
@@ -293,7 +293,7 @@ export class CodexOAuthProvider implements OAuthServerProvider {
             setLoginPageHeaders(res);
             res.status(400).send(renderLoginPage({
                 ...form,
-                error: "连接信息有问题，请重新输入连接密码。",
+                error: "Invalid connection details. Enter the connection password again.",
             }));
             return;
         }
@@ -303,7 +303,7 @@ export class CodexOAuthProvider implements OAuthServerProvider {
             setLoginPageHeaders(res);
             res.status(401).send(renderLoginPage({
                 ...form,
-                error: "连接密码不正确，请再试一次。",
+                error: "Incorrect connection password. Please try again.",
             }));
             return;
         }
@@ -457,14 +457,14 @@ function renderLoginPage(input: {
         .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}" />`)
         .join("\n");
     const loopbackWarning = isLoopbackHost(redirect.hostname)
-        ? '<p class="warning">这个连接会回到当前电脑。请确认是你刚刚在 ChatGPT 里发起的连接。</p>'
+        ? '<p class="warning">This connection returns to this computer. Confirm that you just started it in ChatGPT.</p>'
         : "";
     return `<!doctype html>
-<html lang="zh-CN">
+<html lang="en-US">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>连接 codex-mcp</title>
+<title>Connect to codex-mcp</title>
 <style>
 body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f7f9;color:#18181b}
 main{max-width:420px;margin:10vh auto;padding:28px;background:#fff;border:1px solid #e4e4e7;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
@@ -474,17 +474,17 @@ button{width:100%;margin-top:18px;padding:11px 14px;border:0;border-radius:8px;b
 </style>
 </head>
 <body><main>
-<h1>连接到 codex-mcp</h1>
-<p><strong>${clientName}</strong> 想连接这台电脑上的 codex-mcp。确认是你本人操作后，输入连接密码。</p>
-<div class="meta">权限：${scopes}</div>
-<div class="meta">连接返回到：<strong>${redirectHost}</strong><br>${redirectUri}</div>
+<h1>Connect to codex-mcp</h1>
+<p><strong>${clientName}</strong> wants to connect to codex-mcp on this computer. Confirm that you initiated this request, then enter your connection password.</p>
+<div class="meta">Permissions: ${scopes}</div>
+<div class="meta">Connection returns to: <strong>${redirectHost}</strong><br>${redirectUri}</div>
 ${loopbackWarning}
 ${error}
 <form method="post" action="/authorize" autocomplete="off">
 ${hiddenFields}
-<label for="password">连接密码</label>
+<label for="password">Connection password</label>
 <input id="password" name="password" type="password" required autofocus autocomplete="current-password" maxlength="1024" />
-<button type="submit">确认连接</button>
+<button type="submit">Confirm connection</button>
 </form>
 </main></body></html>`;
 }

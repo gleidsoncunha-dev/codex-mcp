@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   verify:
-    name: 发布检查 / ${{ matrix.os }}
+    name: Release checks / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -50,7 +50,7 @@ jobs:
         run: npm audit --omit=dev --registry=https://registry.npmjs.org
 
   package:
-    name: 生成 Release
+    name: Build release
     needs: verify
     runs-on: ubuntu-latest
     permissions:
@@ -75,7 +75,7 @@ jobs:
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
-            echo "package.json 版本是 $PACKAGE_VERSION，但 Git tag 是 $GITHUB_REF_NAME"
+            echo "package.json version is $PACKAGE_VERSION, but Git tag is $GITHUB_REF_NAME"
             exit 1
           fi
 
@@ -101,7 +101,7 @@ jobs:
           if-no-files-found: error
 
   github-release:
-    name: 发布 GitHub Release
+    name: Publish GitHub Release
     needs: package
     runs-on: ubuntu-latest
     permissions:
@@ -131,7 +131,7 @@ jobs:
             --title "codex-mcp $GITHUB_REF_NAME"
 
   publish-npm:
-    name: 发布到 npm
+    name: Publish to npm
     needs: package
     runs-on: ubuntu-latest
     permissions:
@@ -163,7 +163,7 @@ jobs:
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
-            echo "package.json 版本是 $PACKAGE_VERSION，但 Git tag 是 $GITHUB_REF_NAME"
+            echo "package.json version is $PACKAGE_VERSION, but Git tag is $GITHUB_REF_NAME"
             exit 1
           fi
 
@@ -175,7 +175,7 @@ jobs:
           PACKAGE_NAME="$(node -p "require('./package.json').name")"
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
-            echo "$PACKAGE_NAME@$PACKAGE_VERSION 已经在 npm 上，跳过发布"
+            echo "$PACKAGE_NAME@$PACKAGE_VERSION is already on npm; skipping publication"
             exit 0
           fi
           npm publish ./release/codex-mcp.tgz --access public --provenance

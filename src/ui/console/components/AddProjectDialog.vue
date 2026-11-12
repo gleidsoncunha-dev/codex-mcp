@@ -39,7 +39,7 @@ async function choose(): Promise<void> {
         if (result.path) path.value = result.path;
         if (result.unavailable) {
             manual.value = true;
-            error.value = "无法打开系统选择窗口，请选择推荐项目或手动输入完整路径。";
+            error.value = "The system folder picker could not open. Choose a suggested project or enter its full path.";
         }
     } catch (reason) {
         if (!controller.signal.aborted) error.value = friendlyError(reason);
@@ -58,15 +58,15 @@ function close(): void {
 </script>
 
 <template>
-    <el-dialog :model-value="modelValue" title="添加项目" width="min(560px, 92vw)" :close-on-click-modal="!busy" @close="close">
-        <p class="muted" style="margin-top: -8px">选择这台电脑上的项目文件夹，ChatGPT 就可以在其中工作。</p>
+    <el-dialog :model-value="modelValue" title="Add project" width="min(560px, 92vw)" :close-on-click-modal="!busy" @close="close">
+        <p class="muted" style="margin-top: -8px">Choose a project folder on this computer so ChatGPT can work in it.</p>
         <el-button class="break-all" style="width: 100%; height: auto; min-height: 64px; margin-top: 16px" :loading="picking" :disabled="busy" @click="choose">
             <el-icon><FolderOpened /></el-icon>
-            {{ picking ? "请在系统窗口中选择文件夹" : "打开系统文件夹选择器" }}
+            {{ picking ? "Choose a folder in the system dialog" : "Open system folder picker" }}
         </el-button>
-        <el-alert v-if="path" style="margin-top: 14px" type="success" :closable="false"><template #title>已选择：{{ path }}</template></el-alert>
+        <el-alert v-if="path" style="margin-top: 14px" type="success" :closable="false"><template #title>Selected: {{ path }}</template></el-alert>
         <div v-if="suggestions.length" style="margin-top: 18px">
-            <div class="muted small" style="margin-bottom: 6px">最近或自动发现的项目</div>
+            <div class="muted small" style="margin-bottom: 6px">Recent or discovered projects</div>
             <el-scrollbar max-height="190px">
                 <div v-for="item in suggestions" :key="item.path" class="status-line" style="cursor: pointer" @click="path = item.path; error = ''">
                     <div class="inline-actions" style="min-width: 0"><el-icon><Folder /></el-icon><div style="min-width: 0"><div>{{ item.name }}</div><div class="muted small break-all">{{ item.path }}</div></div></div>
@@ -74,12 +74,12 @@ function close(): void {
                 </div>
             </el-scrollbar>
         </div>
-        <el-button text type="primary" style="margin-top: 12px" @click="manual = !manual">{{ manual ? "隐藏手动输入" : "手动输入路径" }}</el-button>
-        <el-input v-if="manual" v-model="path" placeholder="项目文件夹完整路径" />
+        <el-button text type="primary" style="margin-top: 12px" @click="manual = !manual">{{ manual ? "Hide manual entry" : "Enter path manually" }}</el-button>
+        <el-input v-if="manual" v-model="path" placeholder="Full path to the project folder" />
         <el-alert v-if="error" style="margin-top: 12px" type="warning" :closable="false" :title="error" />
         <template #footer>
-            <el-button :disabled="busy" @click="close">取消</el-button>
-            <el-button type="primary" :loading="busy" :disabled="!path.trim() || picking" @click="add">添加项目</el-button>
+            <el-button :disabled="busy" @click="close">Cancel</el-button>
+            <el-button type="primary" :loading="busy" :disabled="!path.trim() || picking" @click="add">Add project</el-button>
         </template>
     </el-dialog>
 </template>

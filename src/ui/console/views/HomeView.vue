@@ -29,58 +29,58 @@ const activeProjects = computed(() => props.projects.filter((item) => item.activ
 const publicUrl = computed(() => props.setup?.config.publicAccess ? `https://${props.setup.config.publicAccess.domain}/mcp` : "");
 const configured = computed(() => Boolean(publicUrl.value && props.setup?.passwordConfigured));
 const connectionDetail = computed(() => {
-    if (props.result?.ready) return "检查已通过";
-    if (!publicUrl.value) return "需要公网地址";
-    if (!props.setup?.passwordConfigured) return "需要设置密码";
-    return props.result ? "还有检查项需要处理" : "等待连接检查";
+    if (props.result?.ready) return "Checks passed";
+    if (!publicUrl.value) return "Public address required";
+    if (!props.setup?.passwordConfigured) return "Password required";
+    return props.result ? "Some checks need attention" : "Waiting for connection check";
 });
 const liveMode = computed(() => props.status?.runtime.runtime?.mode === "local" ? "local" : props.status?.runtime.runtime?.mode === "public" ? "public" : undefined);
 const preferredMode = computed(() => props.setup?.config.runtime?.mode ?? (publicUrl.value ? "public" : "local"));
 
 async function copyUrl(): Promise<void> {
     if (!publicUrl.value) return;
-    try { await navigator.clipboard.writeText(publicUrl.value); ElMessage.success("连接地址已复制"); }
-    catch { ElMessage.error("复制失败，请手动复制"); }
+    try { await navigator.clipboard.writeText(publicUrl.value); ElMessage.success("Connection address copied"); }
+    catch { ElMessage.error("Copy failed. Please copy manually."); }
 }
 </script>
 
 <template>
     <div>
         <div class="page-heading">
-            <h1>概览</h1>
-            <p>查看 MCP、ChatGPT 连接和项目状态。需要操作时直接进入对应页面。</p>
+            <h1>Overview</h1>
+            <p>View MCP, ChatGPT connection, and project status. Open a page to manage it.</p>
         </div>
 
         <div class="metric-grid">
-            <el-card class="metric-card" shadow="never"><div class="metric-label">MCP 服务</div><div class="metric-value">{{ loading ? "…" : running ? "运行中" : "未启动" }}</div><div class="metric-detail">{{ status?.runtime.runtime?.mode === "local" ? "仅本机" : status?.runtime.runtime?.mode ?? "等待启动" }}</div></el-card>
-            <el-card class="metric-card" shadow="never"><div class="metric-label">ChatGPT 连接</div><div class="metric-value">{{ configured ? "已配置" : "未配置" }}</div><div class="metric-detail">{{ connectionDetail }}</div></el-card>
-            <el-card class="metric-card" shadow="never"><div class="metric-label">项目</div><div class="metric-value">{{ activeProjects.length }}</div><div class="metric-detail">{{ projects.length - activeProjects.length }} 个已停用</div></el-card>
-            <el-card class="metric-card" shadow="never"><div class="metric-label">会话绑定</div><div class="metric-value">{{ conversationCount }}</div><div class="metric-detail">当前项目选择记录</div></el-card>
+            <el-card class="metric-card" shadow="never"><div class="metric-label">MCP service</div><div class="metric-value">{{ loading ? "…" : running ? "Running" : "Stopped" }}</div><div class="metric-detail">{{ status?.runtime.runtime?.mode === "local" ? "Local only" : status?.runtime.runtime?.mode ?? "Waiting to start" }}</div></el-card>
+            <el-card class="metric-card" shadow="never"><div class="metric-label">ChatGPT connection</div><div class="metric-value">{{ configured ? "Configured" : "Not configured" }}</div><div class="metric-detail">{{ connectionDetail }}</div></el-card>
+            <el-card class="metric-card" shadow="never"><div class="metric-label">Projects</div><div class="metric-value">{{ activeProjects.length }}</div><div class="metric-detail">{{ projects.length - activeProjects.length }} inactive</div></el-card>
+            <el-card class="metric-card" shadow="never"><div class="metric-label">Session bindings</div><div class="metric-value">{{ conversationCount }}</div><div class="metric-detail">Current project selections</div></el-card>
         </div>
 
         <div class="content-grid">
             <el-card shadow="never">
                 <div class="section-heading">
-                    <div><h2>开始使用</h2><p>按当前状态只显示下一步最有用的操作。</p></div>
+                    <div><h2>Get started</h2><p>Suggested next steps based on the current status.</p></div>
                 </div>
-                <div v-if="!activeProjects.length" class="inline-actions"><el-button type="primary" :icon="FolderAdd" @click="emit('add')">添加项目</el-button><span class="muted small">项目注册不会启动 MCP 服务。</span></div>
-                <div v-else-if="!running && !configured" class="inline-actions"><el-button type="primary" :icon="Link" @click="emit('navigate', 'connect')">配置 ChatGPT 连接</el-button><el-button :icon="VideoPlay" :loading="busy" @click="emit('start', 'local')">仅本机启动</el-button></div>
-                <div v-else-if="!running" class="inline-actions"><el-button type="primary" :icon="VideoPlay" :loading="busy" @click="emit('start', 'public')">启动公网服务</el-button><el-button :loading="busy" @click="emit('start', 'local')">仅本机启动</el-button><span class="muted small">当前默认：{{ preferredMode === 'public' ? '公网' : '本机' }}</span></div>
-                <div v-else class="inline-actions"><el-button v-if="liveMode === 'local' && !configured" type="primary" :icon="Link" @click="emit('navigate', 'connect')">配置 ChatGPT 连接</el-button><el-button v-else-if="liveMode === 'local' && configured" type="primary" :loading="busy" @click="emit('start', 'public')">切换到公网</el-button><el-button v-else-if="liveMode === 'public'" :loading="busy" @click="emit('start', 'local')">切换到本机</el-button><el-button v-if="liveMode === 'public'" type="primary" :icon="Refresh" :loading="busy" @click="emit('check')">检查连接</el-button><el-button :icon="Tools" @click="emit('repair')">检查并修复</el-button><el-button text type="danger" :icon="VideoPause" :disabled="busy" @click="emit('stop')">停止服务</el-button></div>
+                <div v-if="!activeProjects.length" class="inline-actions"><el-button type="primary" :icon="FolderAdd" @click="emit('add')">Add project</el-button><span class="muted small">Registering a project does not start the MCP service.</span></div>
+                <div v-else-if="!running && !configured" class="inline-actions"><el-button type="primary" :icon="Link" @click="emit('navigate', 'connect')">Set up ChatGPT connection</el-button><el-button :icon="VideoPlay" :loading="busy" @click="emit('start', 'local')">Start locally</el-button></div>
+                <div v-else-if="!running" class="inline-actions"><el-button type="primary" :icon="VideoPlay" :loading="busy" @click="emit('start', 'public')">Start public service</el-button><el-button :loading="busy" @click="emit('start', 'local')">Start locally</el-button><span class="muted small">Current default: {{ preferredMode === 'public' ? 'Public' : 'Local' }}</span></div>
+                <div v-else class="inline-actions"><el-button v-if="liveMode === 'local' && !configured" type="primary" :icon="Link" @click="emit('navigate', 'connect')">Set up ChatGPT connection</el-button><el-button v-else-if="liveMode === 'local' && configured" type="primary" :loading="busy" @click="emit('start', 'public')">Switch to public mode</el-button><el-button v-else-if="liveMode === 'public'" :loading="busy" @click="emit('start', 'local')">Switch to local mode</el-button><el-button v-if="liveMode === 'public'" type="primary" :icon="Refresh" :loading="busy" @click="emit('check')">Check connection</el-button><el-button :icon="Tools" @click="emit('repair')">Check and repair</el-button><el-button text type="danger" :icon="VideoPause" :disabled="busy" @click="emit('stop')">Stop service</el-button></div>
 
                 <div style="margin-top: 22px">
-                    <div class="status-line"><span class="status-label">ChatGPT 地址</span><div class="inline-actions" style="justify-content: flex-end"><code class="small break-all">{{ publicUrl || "尚未配置" }}</code><el-button v-if="publicUrl" text :icon="CopyDocument" @click="copyUrl" /></div></div>
-                    <div class="status-line"><span class="status-label">当前项目</span><div class="inline-actions" style="justify-content: flex-end"><el-tag v-for="project in activeProjects.slice(0, 5)" :key="project.id" effect="plain" @click="emit('navigate', 'projects')">{{ project.name }}</el-tag><el-button v-if="activeProjects.length > 5" text @click="emit('navigate', 'projects')">+{{ activeProjects.length - 5 }}</el-button></div></div>
+                    <div class="status-line"><span class="status-label">ChatGPT address</span><div class="inline-actions" style="justify-content: flex-end"><code class="small break-all">{{ publicUrl || "Not configured yet" }}</code><el-button v-if="publicUrl" text :icon="CopyDocument" @click="copyUrl" /></div></div>
+                    <div class="status-line"><span class="status-label">Current projects</span><div class="inline-actions" style="justify-content: flex-end"><el-tag v-for="project in activeProjects.slice(0, 5)" :key="project.id" effect="plain" @click="emit('navigate', 'projects')">{{ project.name }}</el-tag><el-button v-if="activeProjects.length > 5" text @click="emit('navigate', 'projects')">+{{ activeProjects.length - 5 }}</el-button></div></div>
                 </div>
             </el-card>
 
             <el-card shadow="never">
-                <div class="section-heading"><div><h2>状态</h2><p>常用运行信息。</p></div></div>
-                <div class="status-line"><span class="status-label">Controller</span><el-tag type="success" effect="light">运行中</el-tag></div>
-                <div class="status-line"><span class="status-label">MCP Runtime</span><el-tag :type="running ? 'success' : 'info'" effect="light">{{ running ? (liveMode === 'public' ? '公网运行中' : '本机运行中') : '未启动' }}</el-tag></div>
-                <div class="status-line"><span class="status-label">默认启动</span><el-tag effect="plain">{{ preferredMode === 'public' ? '公网模式' : '本机模式' }}</el-tag></div>
-                <div class="status-line"><span class="status-label">公网地址</span><el-tag :type="publicUrl ? 'success' : 'warning'" effect="light">{{ publicUrl ? "已配置" : "未配置" }}</el-tag></div>
-                <div class="status-line"><span class="status-label">连接密码</span><el-tag :type="setup?.passwordConfigured ? 'success' : 'warning'" effect="light">{{ setup?.passwordConfigured ? "已设置" : "未设置" }}</el-tag></div>
+                <div class="section-heading"><div><h2>Status</h2><p>Current service information.</p></div></div>
+                <div class="status-line"><span class="status-label">Controller</span><el-tag type="success" effect="light">Running</el-tag></div>
+                <div class="status-line"><span class="status-label">MCP Runtime</span><el-tag :type="running ? 'success' : 'info'" effect="light">{{ running ? (liveMode === 'public' ? 'Running publicly' : 'Running locally') : 'Stopped' }}</el-tag></div>
+                <div class="status-line"><span class="status-label">Default startup</span><el-tag effect="plain">{{ preferredMode === 'public' ? 'Public mode' : 'Local mode' }}</el-tag></div>
+                <div class="status-line"><span class="status-label">Public address</span><el-tag :type="publicUrl ? 'success' : 'warning'" effect="light">{{ publicUrl ? "Configured" : "Not configured" }}</el-tag></div>
+                <div class="status-line"><span class="status-label">Connection password</span><el-tag :type="setup?.passwordConfigured ? 'success' : 'warning'" effect="light">{{ setup?.passwordConfigured ? "Set" : "Not set" }}</el-tag></div>
             </el-card>
         </div>
 

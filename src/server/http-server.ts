@@ -282,7 +282,7 @@ export function createHttpServer(
         registerDaemonControlRoutes(app, config, daemonOptions, () => boundPort);
         app.post("/daemon/check-tools", async (_req, res) => {
             try { res.json(await probeMcpHandler(mcpHandler, localMcpUrl(), config.oauthRequired)); }
-            catch { res.status(500).json({ error: "工具检查未通过" }); }
+            catch { res.status(500).json({ error: "Tool checks failed" }); }
         });
     }
 
@@ -368,7 +368,7 @@ export function createHttpServer(
         listen: async () => {
             if (config.oauthRequired && !(await hasAdminPassword())) {
                 throw new Error(
-                    "还没有设置连接密码，请先运行 `codex-mcp setup`。",
+                    "Connection password is not set. Run `codex-mcp setup` first.",
                 );
             }
             const listening = await new Promise<NodeHttpServer>((resolve, reject) => {
@@ -408,7 +408,7 @@ export function createHttpServer(
             ]);
             httpServer = undefined;
             const errors = results.flatMap((result) => result.status === "rejected" ? [result.reason] : []);
-            if (errors.length) throw new AggregateError(errors, "服务资源清理未完成");
+            if (errors.length) throw new AggregateError(errors, "Service resource cleanup incomplete");
         },
     };
 }

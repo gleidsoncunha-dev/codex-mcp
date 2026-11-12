@@ -297,7 +297,7 @@ export function createControllerHttpServer(options: ControllerHttpServerOptions)
         res.status(202).json({
             ok: true,
             operation: operations.start(fix ? "doctor-fix" : "doctor", async (context) => {
-                context.phase(fix ? "执行安全本机修复" : "运行诊断");
+                context.phase(fix ? "Run safe local repairs" : "Run diagnostics");
                 return await runDoctorService(fix);
             }),
         });
@@ -307,7 +307,7 @@ export function createControllerHttpServer(options: ControllerHttpServerOptions)
         res.status(202).json({
             ok: true,
             operation: operations.start("public-check", async (context) => {
-                context.phase("验证公网连接");
+                context.phase("Verify public connection");
                 return await verifyPublicAccess();
             }),
         });
@@ -318,7 +318,7 @@ export function createControllerHttpServer(options: ControllerHttpServerOptions)
         res.status(202).json({
             ok: true,
             operation: operations.start("cloudflare-discover", async (context) => {
-                context.phase(forceLogin ? "打开 Cloudflare 登录" : "读取 Cloudflare 登录");
+                context.phase(forceLogin ? "Open Cloudflare login" : "Read Cloudflare login");
                 const result = await discoverCloudflareForSetup(forceLogin, {
                     signal: context.signal,
                     onLoginOutput: (text) => {
@@ -327,7 +327,7 @@ export function createControllerHttpServer(options: ControllerHttpServerOptions)
                         }
                     },
                 });
-                context.phase("Cloudflare 域名已读取");
+                context.phase("Cloudflare domains loaded");
                 return result;
             }),
         });
@@ -370,7 +370,7 @@ export function createControllerHttpServer(options: ControllerHttpServerOptions)
             operation: operations.start("update", async (context) => {
                 const before = await getControlStatus();
                 const intent = before.runtime?.runtimeIntent;
-                context.phase("安装新版本");
+                context.phase("Install new version");
                 await selfUpdate({
                     signal: context.signal,
                     onOutput: (text) => {
@@ -381,11 +381,11 @@ export function createControllerHttpServer(options: ControllerHttpServerOptions)
                 });
                 context.signal.throwIfAborted();
                 if (intent) {
-                    context.phase("重启 MCP Runtime");
+                    context.phase("Restart MCP Runtime");
                     await stopRuntime();
                     await startRuntime({ ...intent, intentSpecified: true });
                 }
-                context.phase("启动新版 Controller");
+                context.phase("Start updated Controller");
                 const replacement = await spawnReplacementController();
                 const reloadUrl = controllerPanelUrl(replacement.state);
                 setTimeout(() => { void options.onReplaced(); }, 5_000).unref?.();
@@ -459,7 +459,7 @@ export function createControllerHttpServer(options: ControllerHttpServerOptions)
                     if (error) { reject(error); return; }
                     const address = listening.address();
                     if (!address || typeof address === "string") {
-                        reject(new Error("Controller 没有获得 TCP 监听地址"));
+                        reject(new Error("Controller did not receive a TCP listening address"));
                         return;
                     }
                     port = address.port;

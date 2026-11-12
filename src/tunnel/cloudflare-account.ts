@@ -75,45 +75,45 @@ export function readTunnelCredentialIdentity(
     try {
         value = JSON.parse(readFileSync(path, "utf8")) as unknown;
     } catch (error) {
-        throw new Error(`Tunnel 凭据无法解析：${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Cannot parse Tunnel credentials: ${error instanceof Error ? error.message : String(error)}`);
     }
     if (!value || typeof value !== "object" || Array.isArray(value)) {
-        throw new Error("Tunnel 凭据格式不正确");
+        throw new Error("Invalid Tunnel credential format");
     }
     const record = value as Record<string, unknown>;
     const accountId = typeof record.AccountTag === "string" ? record.AccountTag.trim() : "";
     const tunnelSecret = typeof record.TunnelSecret === "string" ? record.TunnelSecret.trim() : "";
     if (!accountId || !tunnelSecret) {
-        throw new Error("Tunnel 凭据缺少 AccountTag 或 TunnelSecret");
+        throw new Error("Tunnel credentials are missing AccountTag or TunnelSecret");
     }
     return {
         accountId,
-        tunnelId: normalizeTunnelId(record.TunnelID, "Tunnel 凭据中的 TunnelID"),
+        tunnelId: normalizeTunnelId(record.TunnelID, "TunnelID in Tunnel credentials"),
     };
 }
 
 export function parseCloudflareOriginToken(pem: string): CloudflareOriginToken {
     const match = pem.match(ARGO_TUNNEL_TOKEN_RE);
     if (!match?.[1]) {
-        throw new Error("Cloudflare 登录凭据里没有找到 ARGO TUNNEL TOKEN");
+        throw new Error("ARGO TUNNEL TOKEN not found in Cloudflare login credentials");
     }
 
     let parsed: unknown;
     try {
         parsed = JSON.parse(Buffer.from(match[1].replace(/\s+/g, ""), "base64").toString("utf8"));
     } catch {
-        throw new Error("Cloudflare 登录凭据格式无法识别");
+        throw new Error("Unrecognized Cloudflare login credential format");
     }
 
     if (!parsed || typeof parsed !== "object") {
-        throw new Error("Cloudflare 登录凭据格式无法识别");
+        throw new Error("Unrecognized Cloudflare login credential format");
     }
     const record = parsed as Record<string, unknown>;
     const accountID = typeof record.accountID === "string" ? record.accountID.trim() : "";
     const apiToken = typeof record.apiToken === "string" ? record.apiToken.trim() : "";
     const zoneID = typeof record.zoneID === "string" ? record.zoneID.trim() : "";
     if (!accountID || !apiToken || !zoneID) {
-        throw new Error("Cloudflare 登录凭据缺少 accountID、apiToken 或 zoneID");
+        throw new Error("Cloudflare login credentials are missing accountID, apiToken, or zoneID");
     }
     return { accountID, apiToken, zoneID };
 }
@@ -141,7 +141,7 @@ export async function discoverCloudflareZones(
             };
         } catch {
             throw new Error(
-                `无法读取 Cloudflare 域名：${listError instanceof Error ? listError.message : String(listError)}`,
+                `Cannot read Cloudflare domains: ${listError instanceof Error ? listError.message : String(listError)}`,
             );
         }
     }
@@ -220,14 +220,14 @@ async function cloudflareGet<T>(
     try {
         payload = JSON.parse(response.body.toString("utf8")) as CloudflareApiEnvelope<T>;
     } catch {
-        throw new Error(`Cloudflare API 返回了无法识别的内容（HTTP ${response.status}）`);
+        throw new Error(`Cloudflare API returned unrecognized content (HTTP ${response.status})`);
     }
     if (response.status !== 200 || payload.success !== true) {
         const detail = payload.errors
             ?.map((error) => error.message?.trim())
             .filter((message): message is string => Boolean(message))
-            .join("；");
-        throw new Error(detail || `Cloudflare API 请求失败（HTTP ${response.status}）`);
+            .join("; ");
+        throw new Error(detail || `Cloudflare API request failed (HTTP ${response.status})`);
     }
     return payload;
 }

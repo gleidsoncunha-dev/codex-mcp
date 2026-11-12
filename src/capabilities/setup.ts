@@ -29,27 +29,27 @@ export async function configureCapabilitySources(
     const currentConfig = loadUserConfig().capabilities;
 
     printSummary(
-        "外部能力",
+        "External capabilities",
         detections.map((item) => ({
             label: item.label,
             value: item.detected
                 ? describeDetection(item)
-                : "未检测到",
+                : "Not detected",
         })),
     );
 
     if (detected.length === 0) {
-        printInfo("没有检测到 Codex、Claude Code 或 Agent Skills；保持默认设置，不写入额外配置。");
+        printInfo("No Codex, Claude Code, or Agent Skills detected. Keeping defaults without writing extra configuration.");
         return { detections, changed: false };
     }
 
     const action = await askSelect(
-        "是否让 codex-mcp 使用这些已有能力？",
+        "Allow codex-mcp to use these existing capabilities?",
         [
-            { value: "all", label: "使用检测到的全部能力", hint: "推荐；只读取源配置，不复制" },
-            { value: "custom", label: "自定义", hint: "分别选择 MCP / Skills" },
-            { value: "off", label: "都不使用" },
-            { value: "keep", label: "保持当前设置" },
+            { value: "all", label: "Use all detected capabilities", hint: "Recommended; read source configuration without copying" },
+            { value: "custom", label: "Custom", hint: "Choose MCP and skills separately" },
+            { value: "off", label: "Use none" },
+            { value: "keep", label: "Keep current settings" },
         ],
         "all",
     );
@@ -82,10 +82,10 @@ export async function configureCapabilitySources(
     const anyEnabled = SOURCE_PRIORITY.some((source) => resolvedNext.sources[source].enabled);
     const sync = anyEnabled
         ? await askSelect(
-              "外部能力变化时如何同步？",
+              "How should external capability changes be synced?",
               [
-                  { value: "watch", label: "自动同步变化", hint: "推荐；源配置变化后热刷新" },
-                  { value: "startup", label: "只在启动时读取", hint: "运行期间不监听文件变化" },
+                  { value: "watch", label: "Sync changes automatically", hint: "Recommended; refresh when source configuration changes" },
+                  { value: "startup", label: "Read only at startup", hint: "Do not watch files while running" },
               ],
               "watch",
           )
@@ -105,8 +105,8 @@ export function describeCapabilitiesConfig(config?: UserCapabilitiesConfig): str
     const enabled = resolved.priority
         .filter((source) => resolved.sources[source].enabled)
         .map(sourceLabel);
-    const sync = resolved.sync === "startup" ? "仅启动读取" : "自动同步";
-    return `${enabled.length > 0 ? enabled.join(" + ") : "未启用外部能力"} · ${sync}`;
+    const sync = resolved.sync === "startup" ? "Read at startup" : "Automatic sync";
+    return `${enabled.length > 0 ? enabled.join(" + ") : "External capabilities disabled"} · ${sync}`;
 }
 
 function detectedSourceDefaults(item: CapabilitySourceDetection): CapabilitySourceConfig {
@@ -136,10 +136,10 @@ async function configureOneSource(
 ): Promise<CapabilitySourceConfig> {
     if (source === "agents") {
         const choice = await askSelect(
-            `${label}：`,
+            `${label}: `,
             [
-                { value: "skills", label: "使用 Skills" },
-                { value: "off", label: "不使用" },
+                { value: "skills", label: "Use skills" },
+                { value: "off", label: "Do not use" },
             ],
             "skills",
         );
@@ -147,12 +147,12 @@ async function configureOneSource(
     }
 
     const choice = await askSelect(
-        `${label}：`,
+        `${label}: `,
         [
-            { value: "all", label: "使用 MCP + Skills" },
-            { value: "mcp", label: "仅使用 MCP" },
-            { value: "skills", label: "仅使用 Skills" },
-            { value: "off", label: "不使用" },
+            { value: "all", label: "Use MCP and skills" },
+            { value: "mcp", label: "Use MCP only" },
+            { value: "skills", label: "Use skills only" },
+            { value: "off", label: "Do not use" },
         ],
         "all",
     );
@@ -168,7 +168,7 @@ function describeDetection(item: CapabilitySourceDetection): string {
     if (item.mcp) parts.push("MCP");
     if (item.skills) parts.push("Skills");
     if (parts.length === 0 && item.detail) parts.push(item.detail);
-    return parts.length > 0 ? `已检测 · ${parts.join(" + ")}` : "已检测";
+    return parts.length > 0 ? `Detected · ${parts.join(" + ")}` : "Detected";
 }
 
 function sourceLabel(source: CapabilitySourceId): string {

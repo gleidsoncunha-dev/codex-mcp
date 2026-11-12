@@ -13,7 +13,7 @@ const execute = promisify(execFile);
 let pickerOpen = false;
 
 export async function validateProjectFolder(input: string): Promise<string> {
-    if (!input.trim()) throw new Error("请选择一个项目文件夹。");
+    if (!input.trim()) throw new Error("Choose a project folder.");
     try {
         const path = await realpath(resolve(expandHomePath(input.trim())));
         if (!(await stat(path)).isDirectory()) throw new Error("not a directory");
@@ -21,23 +21,23 @@ export async function validateProjectFolder(input: string): Promise<string> {
         return path;
     } catch (error) {
         if (["EACCES", "EPERM"].includes((error as NodeJS.ErrnoException).code ?? "")) {
-            throw new Error("没有访问这个文件夹的权限，请选择其他文件夹或调整权限。");
+            throw new Error("You do not have permission to access this folder. Choose another folder or adjust its permissions.");
         }
-        throw new Error("文件夹不存在或无法读取，请重新选择。");
+        throw new Error("The folder does not exist or is unreadable. Choose another folder.");
     }
 }
 
 /** Only fixed commands are launched; request data is never inserted into a script. */
 export async function chooseProjectFolder(signal?: AbortSignal): Promise<{ path?: string; cancelled?: boolean; unavailable?: boolean }> {
-    if (pickerOpen) throw new Error("文件夹选择窗口已经打开，请先完成选择。");
+    if (pickerOpen) throw new Error("The folder picker is already open. Complete the selection first.");
     pickerOpen = true;
     try {
         const commands = process.platform === "darwin"
-            ? [{ file: "/usr/bin/osascript", args: ["-e", 'try\nreturn POSIX path of (choose folder with prompt "选择要添加的项目文件夹")\non error number -128\nreturn ""\nend try'] }]
+            ? [{ file: "/usr/bin/osascript", args: ["-e", 'try\nreturn POSIX path of (choose folder with prompt "Choose the project folder to add")\non error number -128\nreturn ""\nend try'] }]
             : process.platform === "win32"
                 ? [{ file: "powershell.exe", args: ["-NoProfile", "-STA", "-Command", "Add-Type -AssemblyName System.Windows.Forms; $picker = New-Object System.Windows.Forms.FolderBrowserDialog; $picker.Description = 'Select a project folder'; if ($picker.ShowDialog() -eq 'OK') { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Output $picker.SelectedPath }; $picker.Dispose()"] }]
                 : process.platform === "linux" && (process.env.DISPLAY || process.env.WAYLAND_DISPLAY)
-                    ? [{ file: "zenity", args: ["--file-selection", "--directory", "--title=选择项目文件夹"] }, { file: "kdialog", args: ["--getexistingdirectory", homedir(), "--title", "选择项目文件夹"] }]
+                    ? [{ file: "zenity", args: ["--file-selection", "--directory", "--title=Choose project folder"] }, { file: "kdialog", args: ["--getexistingdirectory", homedir(), "--title", "Choose project folder"] }]
                     : [];
         for (const command of commands) {
             try {
@@ -106,7 +106,7 @@ export function presentBindings(bindings: SessionBinding[]) {
     return bindings.map((binding) => ({
         id: bindingPresentationId(binding.ownerKey),
         projectId: binding.projectId,
-        label: binding.ownerKey.includes("|openai-session:") ? "ChatGPT 会话" : "客户端会话",
+        label: binding.ownerKey.includes("|openai-session:") ? "ChatGPT session" : "Client session",
         lastSeenAt: binding.lastSeenAt,
     })).sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
 }
