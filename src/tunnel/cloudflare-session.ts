@@ -28,20 +28,20 @@ export async function ensureLogin(
     options: { signal?: AbortSignal; onOutput?: (text: string) => void } = {},
 ): Promise<CloudflareOriginToken> {
     if (!force && hasManagedCloudflareLogin()) {
-        printSuccess("已登录 Cloudflare，无需重复登录。");
+        printSuccess("Already logged in to Cloudflare.");
         return readManagedCloudflareOriginToken();
     }
     if (force) {
-        printInfo("将在临时目录重新登录；新凭据验证成功前会保留旧登录。");
+        printInfo("Logging in again in a temporary directory. Existing login will be kept until new credentials are verified.");
     } else if (existsSync(getCloudflareOriginCertPath())) {
-        printWarning("codex-mcp 保存的 Cloudflare 登录凭据无效，将安全地重新登录。");
+        printWarning("Saved Cloudflare login credentials are invalid. Logging in again safely.");
     }
 
     mkdirSync(getManagedCloudflareDir(), { recursive: true });
     const candidateHome = mkdtempSync(join(getManagedCloudflareDir(), ".login-"));
     const candidateCert = join(candidateHome, ".cloudflared", "cert.pem");
     try {
-        printInfo("正在打开浏览器，请登录 Cloudflare 并完成授权…");
+        printInfo("Opening the browser. Log in to Cloudflare and authorize access…");
         const code = options.signal || options.onOutput
             ? (await runCloudflared(
                   bin,
@@ -59,11 +59,11 @@ export async function ensureLogin(
                   { managedHome: candidateHome },
               );
         if (code !== 0 || !existsSync(candidateCert)) {
-            throw new Error("Cloudflare 登录没有完成；旧登录保持不变");
+            throw new Error("Cloudflare login incomplete; previous login unchanged");
         }
         const token = parseCloudflareOriginToken(readFileSync(candidateCert, "utf8"));
         copyPrivateFileAtomic(candidateCert, getCloudflareOriginCertPath());
-        printSuccess("Cloudflare 登录凭据已安全更新。");
+        printSuccess("Cloudflare login credentials updated safely.");
         return token;
     } finally {
         rmSync(candidateHome, { recursive: true, force: true });
@@ -77,12 +77,12 @@ export async function ensureTunnelCreated(
     knownId?: string,
 ): Promise<{ id: string; name: string; created: boolean }> {
     const tunnels = await withSpinner(
-        "正在检查现有 Cloudflare Tunnel…",
-        "Cloudflare Tunnel 检查完成",
+        "Checking existing Cloudflare Tunnels…",
+        "Cloudflare Tunnel Checks complete",
         () => listTunnels(bin),
     );
     const exactMatches = tunnels.filter((item) => item.name === preferredName);
-    if (exactMatches.length > 1) throw new Error(`存在多个同名 Tunnel：${preferredName}`);
+    if (exactMatches.length > 1) throw new Error(`Multiple Tunnels have the same name: ${preferredName}`);
     const reusable = selectReusableTunnel(
         tunnels,
         preferredName,
@@ -91,9 +91,9 @@ export async function ensureTunnelCreated(
     );
     if (reusable) {
         if (reusable.name !== preferredName) {
-            printInfo(`找到本机已有的历史 Tunnel：${reusable.name}`);
+            printInfo(`Found an existing local historical Tunnel: ${reusable.name}`);
         }
-        printSuccess(`继续使用现有 Tunnel：${reusable.name}`);
+        printSuccess(`Reusing existing Tunnel: ${reusable.name}`);
         return { id: reusable.id, name: reusable.name, created: false };
     }
 
@@ -102,12 +102,12 @@ export async function ensureTunnelCreated(
     if (existing) {
         name = `${preferredName}-${randomUUID().slice(0, 8)}`;
         printWarning(
-            `Cloudflare 上已有同名 Tunnel，但本机没有它的凭据；不会删除远端资源，将创建替代 Tunnel：${name}`,
+            `A Tunnel with this name exists on Cloudflare, but its credentials are missing locally. Keeping remote resources and creating a replacement Tunnel: ${name}`,
         );
     }
     const result = await withSpinner(
-        "正在创建 Cloudflare Tunnel…",
-        "Cloudflare Tunnel 创建请求完成",
+        "Creating Cloudflare Tunnel…",
+        "Cloudflare Tunnel creation request complete",
         () => runCloudflared(bin, cloudflaredManagementArgs("create", name), { allowFailure: true }),
     );
     const combined = `${result.stdout}\n${result.stderr}`;
@@ -125,34 +125,34 @@ export async function ensureTunnelCreated(
         try {
             assertCredentialMatches(getCredentialsPath(created), created, accountId);
             if (result.code !== 0 || !outputId) {
-                printWarning("Tunnel 创建结果已通过远端列表与本机凭据核对。");
+                printWarning("Tunnel creation verified against the remote list and local credentials.");
             }
-            printSuccess("Tunnel 已创建。");
+            printSuccess("Tunnel created.");
             return { id: created, name, created: true };
         } catch (credentialError) {
             if (result.code !== 0) {
                 throw new Error(
-                    `Tunnel 创建命令失败后发现同名远端资源，但无法证明它属于本次请求；` +
-                    `为避免删除并发创建的 Tunnel，未自动清理：${readableError(credentialError)}。` +
-                    "请先运行 `codex-mcp doctor` 并在 Cloudflare 控制台核对",
+                    `A remote resource with the same name was found after Tunnel creation failed, but ownership by this request cannot be proved; ` +
+                    `automatic cleanup skipped to avoid deleting a concurrently created Tunnel: ${readableError(credentialError)}.` +
+                    "Run `codex-mcp doctor` and check the Cloudflare dashboard first",
                 );
             }
             const cleanupErrors: string[] = [];
             await cleanupCreatedTunnel(bin, created, cleanupErrors);
             throw new Error(
-                `Tunnel 已在远端创建，但本机凭据不可用：${readableError(credentialError)}` +
-                (cleanupErrors.length > 0 ? `；${cleanupErrors.join("；")}` : "；已清理远端 Tunnel"),
+                `Tunnel created remotely, but local credentials are unavailable: ${readableError(credentialError)}` +
+                (cleanupErrors.length > 0 ? `; ${cleanupErrors.join("; ")}` : "; Remote Tunnel removed"),
             );
         }
     }
     if (reconciliationError || result.code === 0) {
         throw new Error(
-            `Tunnel 创建请求后无法确认远端状态（名称：${name}）：` +
-            `${reconciliationError ? readableError(reconciliationError) : "远端列表暂未返回新 Tunnel"}。` +
-            "Cloudflare 可能已创建资源，请先运行 `codex-mcp doctor` 后再重试",
+            `Cannot confirm remote state after Tunnel creation request (name: ${name}): ` +
+            `${reconciliationError ? readableError(reconciliationError) : "Remote list has not returned the new Tunnel yet"}.` +
+            "Cloudflare may have created resources. Run `codex-mcp doctor` before retrying",
         );
     }
-    throw new Error(`创建 Tunnel 失败：${(result.stderr || result.stdout).trim()}`);
+    throw new Error(`Failed to create Tunnel: ${(result.stderr || result.stdout).trim()}`);
 }
 
 export function assertCredentialMatches(
@@ -162,10 +162,10 @@ export function assertCredentialMatches(
 ): void {
     const identity = readTunnelCredentialIdentity(path);
     if (identity.tunnelId !== tunnelId.toLowerCase()) {
-        throw new Error(`Tunnel 凭据 ID 与已提交配置不一致：${path}`);
+        throw new Error(`Tunnel credential ID does not match committed configuration: ${path}`);
     }
     if (accountId && identity.accountId !== accountId) {
-        throw new Error(`Tunnel 凭据账号与已提交配置不一致：${path}`);
+        throw new Error(`Tunnel credential account does not match committed configuration: ${path}`);
     }
 }
 
@@ -177,9 +177,9 @@ export async function cleanupCreatedTunnel(
     try {
         await deleteTunnel(bin, tunnelId);
         rmSync(getCredentialsPath(tunnelId), { force: true });
-        printWarning("已清理本次新建且未提交的 Tunnel。");
+        printWarning("Removed the newly created, uncommitted Tunnel.");
     } catch (error) {
-        recoveryErrors.push(`candidate Tunnel 清理失败：${readableError(error)}`);
+        recoveryErrors.push(`Candidate Tunnel cleanup failed: ${readableError(error)}`);
     }
 }
 
@@ -201,7 +201,7 @@ async function deleteTunnel(bin: string, tunnelId: string): Promise<void> {
         { allowFailure: true, timeoutMs: 180_000 },
     );
     if (result.code !== 0) {
-        throw new Error((result.stderr || result.stdout).trim() || `退出代码 ${result.code}`);
+        throw new Error((result.stderr || result.stdout).trim() || `Exit code ${result.code}`);
     }
 }
 
@@ -244,11 +244,11 @@ async function listTunnels(bin: string): Promise<ListedTunnel[]> {
         { allowFailure: true, timeoutMs: 180_000 },
     );
     if (jsonAttempt.code !== 0) {
-        throw new Error((jsonAttempt.stderr || jsonAttempt.stdout).trim() || `无法读取 Cloudflare Tunnel 列表（退出代码 ${jsonAttempt.code}）`);
+        throw new Error((jsonAttempt.stderr || jsonAttempt.stdout).trim() || `Cannot read Cloudflare Tunnel list (exit code ${jsonAttempt.code})`);
     }
     const rows: unknown = JSON.parse(jsonAttempt.stdout);
     if (!Array.isArray(rows) || rows.some((row) => !row || typeof row.id !== "string" || typeof row.name !== "string")) {
-        throw new Error("cloudflared 返回了无效的 Tunnel JSON 列表；请更新 cloudflared");
+        throw new Error("cloudflared returned an invalid Tunnel JSON list; update cloudflared");
     }
     return rows.map((row) => ({ id: row.id, name: row.name }));
 }
@@ -258,7 +258,7 @@ async function findTunnelIdByName(
     tunnelName: string,
 ): Promise<string | undefined> {
     const matches = (await listTunnels(bin)).filter((row) => row.name === tunnelName);
-    if (matches.length > 1) throw new Error(`存在多个同名 Tunnel：${tunnelName}`);
+    if (matches.length > 1) throw new Error(`Multiple Tunnels have the same name: ${tunnelName}`);
     return matches[0]?.id;
 }
 

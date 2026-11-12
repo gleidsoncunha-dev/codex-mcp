@@ -63,7 +63,7 @@ export function loadConfig(options: LoadConfigOptions = {}): ServerConfig {
     const host = local ? "127.0.0.1" : user.host?.trim() || "127.0.0.1";
     const port = user.port ?? 3920;
     if (!Number.isFinite(port) || port < 0 || port > 65535) {
-        throw new Error(`配置里的端口不正确：${port}`);
+        throw new Error(`Invalid port in configuration: ${port}`);
     }
 
     const projectRoot = resolveProjectRoot(options.projectRoot);
@@ -98,7 +98,7 @@ export function resolveWidgetDomain(
 function assertProjectDirectory(pathValue: string): string {
     const absolutePath = resolve(expandHomePath(pathValue));
     if (!existsSync(absolutePath) || !statSync(absolutePath).isDirectory()) {
-        throw new Error(`这个项目目录不存在或不是文件夹：${pathValue}`);
+        throw new Error(`This project directory does not exist or is not a folder: ${pathValue}`);
     }
     return absolutePath;
 }

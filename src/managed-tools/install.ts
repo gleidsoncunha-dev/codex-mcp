@@ -63,7 +63,7 @@ export async function ensureManagedTool(
                 await tar.x({ file: assetPath, cwd: extractDir });
             }
             if (!spec.archiveEntry) {
-                throw new Error(`${spec.label} 安装包缺少目标文件信息`);
+                throw new Error(`${spec.label} package is missing target file information`);
             }
             sourcePath = join(extractDir, ...spec.archiveEntry.split("/"));
         }
@@ -123,11 +123,11 @@ async function downloadVerified(
         headers: { "user-agent": "codex-mcp-managed-tools" },
     });
     if (response.status !== 200) {
-        throw new Error(`下载失败（HTTP ${response.status}）`);
+        throw new Error(`Download failed (HTTP ${response.status})`);
     }
     const actual = createHash("sha256").update(response.body).digest("hex");
     if (actual !== expectedSha256) {
-        throw new Error("下载文件校验失败，请重新尝试");
+        throw new Error("Downloaded file verification failed. Try again");
     }
     await writeFile(destination, response.body, { mode: 0o600 });
 }
@@ -161,7 +161,7 @@ async function replaceManagedBinary(
 
         const installedVersion = await probeVersion(target);
         if (!installedVersion?.includes(expectedVersion)) {
-            throw new Error(`${label} 安装后无法正常启动`);
+            throw new Error(`${label} cannot start correctly after installation`);
         }
     } catch (error) {
         if (backedUp) {

@@ -61,7 +61,7 @@ export function loadControllerState(): ControllerState | undefined {
             version: state.version,
         };
     } catch (error) {
-        throw new Error(`无法读取有效的 Controller 状态：${path}：${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Cannot read valid Controller state: ${path}: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 

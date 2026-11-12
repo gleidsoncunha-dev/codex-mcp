@@ -9,17 +9,17 @@ export function localConsoleHtml(options: LocalConsoleHtmlOptions): string {
     const csrf = escapeAttr(options.csrfToken);
     const version = escapeAttr(options.version);
     return `<!doctype html>
-<html lang="zh-CN">
+<html lang="en-US">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>codex-mcp 本机工作区</title>
+<title>codex-mcp Local workspace</title>
 <link rel="stylesheet" href="/console/app.css" nonce="${nonce}">
 </head>
 <body>
 <div id="console-root" data-csrf-token="${csrf}" data-version="${version}"></div>
-<noscript>请启用 JavaScript 后使用 codex-mcp 控制台。</noscript>
+<noscript>Enable JavaScript to use the codex-mcp console.</noscript>
 <script src="/console/app.js" nonce="${nonce}" defer></script>
 </body>
 </html>`;

@@ -37,7 +37,7 @@ export async function applyTunnelSetup(
     let dnsSnapshot: CloudflareDnsSnapshot | undefined;
     let committedDns: CloudflareDnsSnapshot | undefined;
     let dnsChanged = false;
-    let phase = "本机端口预检";
+    let phase = "Local port preflight";
     const setPhase = (next: string): void => {
         phase = next;
         options.onPhase?.(next);
@@ -46,22 +46,22 @@ export async function applyTunnelSetup(
     try {
         await operations.assertSetupPortAvailable(host, port);
         cancellation.throwIfRequested();
-        setPhase(candidate.useCloudflared ? "candidate connector 启动" : "公网验证");
+        setPhase(candidate.useCloudflared ? "Start candidate connector" : "Public access verification");
         const verification = await operations.verifySetupPublicRoute(candidate, host, port, {
             signal: cancellation.signal,
             beforePublicVerify: candidate.useCloudflared
                 ? async () => {
                       cancellation.throwIfRequested();
-                      setPhase("DNS 快照");
+                      setPhase("DNS snapshot");
                       if (!candidate.zoneId || !candidate.tunnelId) {
-                          throw new Error("Cloudflare DNS 配置缺少 zone 或 Tunnel ID");
+                          throw new Error("Cloudflare DNS configuration is missing zone or Tunnel ID");
                       }
                       dnsSnapshot = await operations.snapshotCloudflareDns(candidate.zoneId, candidate.domain);
                       if (
                           dnsSnapshot.records.length > 0 &&
                           !dnsSnapshotPointsToTunnel(dnsSnapshot, candidate.tunnelId)
                       ) {
-                          printWarning(`域名 ${candidate.domain} 已经有其它 DNS 记录，需要确认是否替换。`);
+                          printWarning(`Domain ${candidate.domain} already has another DNS record. Confirm whether to replace it.`);
                           if (options.confirmDnsOverwrite) {
                               await options.confirmDnsOverwrite(candidate.domain);
                           } else {
@@ -71,20 +71,20 @@ export async function applyTunnelSetup(
                       cancellation.throwIfRequested();
                       setPhase("DNS cutover");
                       const cutover = await withSpinner(
-                          `正在把域名 ${candidate.domain} 连接到已就绪的 Tunnel…`,
-                          "DNS 路由切换完成",
+                          `Connecting domain ${candidate.domain} to the ready Tunnel…`,
+                          "DNS route switched",
                           () => operations.cutoverCloudflareDns(dnsSnapshot!, candidate.tunnelId!),
                       );
                       dnsChanged = cutover.changed;
                       committedDns = cutover.committed;
                       cancellation.throwIfRequested();
-                      setPhase("公网验证");
+                      setPhase("Public access verification");
                   }
                 : undefined,
         });
 
         cancellation.throwIfRequested();
-        setPhase("本机配置提交");
+        setPhase("Commit local configuration");
         const committedConfig = operations.saveUserConfig({
             host,
             port,
@@ -97,24 +97,24 @@ export async function applyTunnelSetup(
             try {
                 operations.removeCloudflaredRevision(candidate.previousConfigRevision);
             } catch (error) {
-                printWarning(`上一个 Tunnel 配置 revision 清理失败，可稍后手动检查：${readableError(error)}`);
+                printWarning(`Failed to clean up the previous Tunnel configuration revision; check it manually later: ${readableError(error)}`);
             }
         }
         const previousManaged = candidate.previousManagedAccess;
         if (previousManaged && previousManaged.domain !== candidate.domain) {
             try {
-                setPhase("清理旧公网 DNS");
+                setPhase("Clean up previous public DNS");
                 const removed = await operations.removeCloudflareManagedDnsIfOwned(
                     previousManaged.zoneId,
                     previousManaged.domain,
                     previousManaged.tunnelId,
                 );
-                if (removed) printSuccess(`已清理旧公网地址：${previousManaged.domain}`);
+                if (removed) printSuccess(`Removed previous public address: ${previousManaged.domain}`);
             } catch (error) {
-                printWarning(`新公网配置已提交，但旧 DNS 清理失败：${readableError(error)}`);
+                printWarning(`New public access configuration committed, but old DNS cleanup failed: ${readableError(error)}`);
             }
         }
-        printSuccess(`codex-mcp 配置已原子提交：${getUserConfigPath()}`);
+        printSuccess(`codex-mcp configuration committed atomically: ${getUserConfigPath()}`);
         return {
             result: { ...candidate, userConfig: committedConfig },
             verification,
@@ -129,9 +129,9 @@ export async function applyTunnelSetup(
             try {
                 await operations.restoreCloudflareDns(dnsSnapshot, committedDns);
                 mayDeleteCreatedTunnel = true;
-                printWarning("公网验证失败，已恢复修改前的 DNS 记录。");
+                printWarning("Public verification failed. Previous DNS records restored.");
             } catch (restoreError) {
-                recoveryErrors.push(`DNS 恢复失败：${readableError(restoreError)}`);
+                recoveryErrors.push(`DNS restoration failed: ${readableError(restoreError)}`);
             }
         }
         if (
@@ -147,17 +147,17 @@ export async function applyTunnelSetup(
                 }
             } catch (inspectError) {
                 mayDeleteCreatedTunnel = false;
-                recoveryErrors.push(`candidate DNS 引用检查失败：${readableError(inspectError)}`);
+                recoveryErrors.push(`Candidate DNS reference check failed: ${readableError(inspectError)}`);
             }
         }
         await operations.cleanupFailedCandidate(candidate, recoveryErrors, mayDeleteCreatedTunnel);
         if (recoveryErrors.length > 0) {
             throw new Error(
-                `公网配置失败（阶段：${phase}）：${readableError(error)}；${recoveryErrors.join("；")}。` +
-                "Cloudflare 可能处于部分变更状态，请先运行 `codex-mcp doctor`，不要重复覆盖 DNS。",
+                `Public access setup failed (phase: ${phase}): ${readableError(error)}; ${recoveryErrors.join("; ")}.` +
+                "Cloudflare may be partially modified. Run `codex-mcp doctor` before overwriting DNS again.",
             );
         }
-        throw new Error(`公网配置失败（阶段：${phase}）：${readableError(error)}`, {
+        throw new Error(`Public access setup failed (phase: ${phase}): ${readableError(error)}`, {
             cause: error,
         });
     } finally {
@@ -169,7 +169,7 @@ export async function discardTunnelSetupCandidate(candidate: TunnelSetupResult):
     const recoveryErrors: string[] = [];
     await cleanupFailedCandidate(candidate, recoveryErrors, true);
     if (recoveryErrors.length > 0) {
-        throw new Error(recoveryErrors.join("；"));
+        throw new Error(recoveryErrors.join("; "));
     }
 }
 
@@ -182,13 +182,13 @@ async function cleanupFailedCandidate(
         try {
             removeCloudflaredRevision(candidate.configRevision);
         } catch (error) {
-            recoveryErrors.push(`candidate YAML 清理失败：${readableError(error)}`);
+            recoveryErrors.push(`Candidate YAML cleanup failed: ${readableError(error)}`);
         }
     }
     if (!candidate.candidateSession?.createdTunnel || !candidate.bin || !candidate.tunnelId) return;
     if (!mayDeleteCreatedTunnel) {
         recoveryErrors.push(
-            "candidate Tunnel 仍可能被 DNS 引用，为避免扩大故障未自动删除",
+            "The candidate Tunnel may still be referenced by DNS; automatic deletion was skipped to avoid worsening the failure",
         );
         return;
     }
@@ -204,15 +204,15 @@ function installSetupCancellationGuard(externalSignal?: AbortSignal): {
     let announced = false;
     const abort = (reason: unknown): void => {
         if (!controller.signal.aborted) {
-            controller.abort(reason instanceof Error ? reason : new Error("已取消公网配置"));
+            controller.abort(reason instanceof Error ? reason : new Error("Public access setup cancelled"));
         }
     };
     const onExternalAbort = (): void => abort(externalSignal?.reason);
     const onSigint = (): void => {
-        abort(new Error("已取消公网配置"));
+        abort(new Error("Public access setup cancelled"));
         if (!announced) {
             announced = true;
-            printWarning("收到中断信号，正在安全结束本次公网配置；如已修改 DNS 会先尝试恢复。");
+            printWarning("Interrupt received. Safely ending public access setup and attempting to restore any changed DNS first.");
         }
     };
     if (externalSignal?.aborted) onExternalAbort();
@@ -225,7 +225,7 @@ function installSetupCancellationGuard(externalSignal?: AbortSignal): {
             if (controller.signal.aborted) {
                 throw controller.signal.reason instanceof Error
                     ? controller.signal.reason
-                    : new Error("已取消公网配置");
+                    : new Error("Public access setup cancelled");
             }
         },
         dispose: () => {

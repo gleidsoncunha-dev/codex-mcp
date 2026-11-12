@@ -11,7 +11,7 @@ const { suggestProjects, validateProjectFolder, presentBindings } = await import
 
 test("project suggestions skip active, nested, missing and dependency folders; Unicode paths remain usable", async () => {
     const root = join(testHome, "workspace");
-    for (const name of ["中文 项目", "active", "node_modules", ".hidden", "plain", "group/nested", "old"]) {
+    for (const name of ["\u4e2d\u6587 Project", "active", "node_modules", ".hidden", "plain", "group/nested", "old"]) {
         mkdirSync(join(root, name), { recursive: true });
         if (name !== "plain") writeFileSync(join(root, name, "package.json"), JSON.stringify({ name }));
     }
@@ -22,12 +22,12 @@ test("project suggestions skip active, nested, missing and dependency folders; U
         { id: "gone", name: "gone", path: join(root, "missing"), active: false, lastSeenAt: "2026-01-01" },
     ];
     const suggestions = await suggestProjects({ home: testHome, projects });
-    assert.deepEqual(new Set(suggestions.map(item => item.name)), new Set(["中文 项目", "old"]));
+    assert.deepEqual(new Set(suggestions.map(item => item.name)), new Set(["\u4e2d\u6587 Project", "old"]));
     assert.equal(suggestions.find(item => item.name === "old").source, "recent");
-    assert.equal(basename(await validateProjectFolder(join(root, "中文 项目"))), "中文 项目");
-    await assert.rejects(validateProjectFolder(join(root, "missing")), /文件夹不存在/);
-    await assert.rejects(validateProjectFolder(join(root, "中文 项目", "package.json")), /文件夹不存在/);
-    await assert.rejects(validateProjectFolder("  "), /请选择/);
+    assert.equal(basename(await validateProjectFolder(join(root, "\u4e2d\u6587 Project"))), "\u4e2d\u6587 Project");
+    await assert.rejects(validateProjectFolder(join(root, "missing")), /folder does not exist/);
+    await assert.rejects(validateProjectFolder(join(root, "\u4e2d\u6587 Project", "package.json")), /folder does not exist/);
+    await assert.rejects(validateProjectFolder("  "), /Choose/);
 });
 
 test("conversation presentation hides raw owner identifiers and sorts by last use", () => {
@@ -37,7 +37,7 @@ test("conversation presentation hides raw owner identifiers and sorts by last us
     ];
     const result = presentBindings(bindings);
     assert.equal(result[0].projectId, "b");
-    assert.equal(result[1].label, "ChatGPT 会话");
+    assert.equal(result[1].label, "ChatGPT session");
     assert.doesNotMatch(JSON.stringify(result), /private-client|private-session|ownerKey/);
     assert.equal(result[1].id, presentBindings(bindings)[1].id);
 });

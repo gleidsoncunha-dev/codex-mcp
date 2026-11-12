@@ -113,7 +113,7 @@ export async function restartRuntime(): Promise<ControlStatus> {
         const existing = await contactRunningDaemon();
         if (!existing) {
             cleanStaleDaemonState();
-            throw new Error("MCP Runtime 没有在运行，无法重启；请使用 `codex-mcp start`");
+            throw new Error("Cannot restart because MCP Runtime is not running; use `codex-mcp start`");
         }
         const intent = existing.state.runtimeIntent;
         await assertIntentReady(intent);
@@ -145,7 +145,7 @@ export async function removeProject(target: string): Promise<{ removed: boolean;
         const status = daemon ? await daemon.client.status() : undefined;
         const projects = status?.projects ?? loadProjectsFile();
         const project = resolveProjectSelection(projects, target);
-        if (!project) throw new Error(`没有找到项目：${target}`);
+        if (!project) throw new Error(`Project not found: ${target}`);
         if (daemon) {
             const result = await daemon.client.deactivateProject(project.id, project.path);
             return { removed: result.removed, project };
@@ -169,7 +169,7 @@ export async function listProjectConversations(target?: string): Promise<Project
     const daemon = await contactRunningDaemon();
     const projects = daemon ? (await daemon.client.status()).projects : loadProjectsFile();
     const project = resolveProjectSelection(projects, target);
-    if (!project) throw new Error(`没有找到项目：${target}`);
+    if (!project) throw new Error(`Project not found: ${target}`);
     const bindings = daemon
         ? await daemon.client.listProjectBindings(project.id)
         : loadBindingsFile().filter((item) => item.projectId === project.id);
@@ -185,13 +185,13 @@ export async function cleanupProjectConversations(
         conversationIds.length > 1_024 ||
         conversationIds.some((id) => typeof id !== "string" || !/^[0-9a-f]{32}$/.test(id))
     ) {
-        throw new Error("会话编号列表无效");
+        throw new Error("Invalid session ID list");
     }
     return await withDaemonLifecycleLock(async () => {
         const daemon = await contactRunningDaemon();
         const projects = daemon ? (await daemon.client.status()).projects : loadProjectsFile();
         const project = resolveProjectSelection(projects, target);
-        if (!project) throw new Error(`没有找到项目：${target}`);
+        if (!project) throw new Error(`Project not found: ${target}`);
         const bindings = daemon
             ? await daemon.client.listProjectBindings(project.id)
             : loadBindingsFile().filter((item) => item.projectId === project.id);
@@ -222,15 +222,15 @@ export async function runDoctorService(fix = false): Promise<DoctorServiceResult
         const stale = Boolean(state && !isPidAlive(state.pid));
         ensureUserConfigDirs();
         cleanStaleDaemonState();
-        fixes.push("已确保 ~/.codex-mcp 和日志目录存在");
-        if (stale) fixes.push("已清理失效的 daemon 状态文件");
+        fixes.push("Ensured that ~/.codex-mcp and the log directory exist");
+        if (stale) fixes.push("Cleared stale daemon state file");
         if (!(await findRipgrep())) {
             try {
                 const installed = await ensureManagedTool("ripgrep");
-                fixes.push(`已安装文件搜索组件：${installed.path}`);
+                fixes.push(`Installed file search tool: ${installed.path}`);
             } catch (error) {
                 warnings.push(
-                    `文件搜索组件自动恢复失败：${error instanceof Error ? error.message : String(error)}`,
+                    `Failed to automatically restore file search tool: ${error instanceof Error ? error.message : String(error)}`,
                 );
             }
         }
@@ -240,7 +240,7 @@ export async function runDoctorService(fix = false): Promise<DoctorServiceResult
 
 export async function setConnectionPassword(password: string): Promise<void> {
     await setAdminPassword(password);
-    if (!(await verifyAdminPassword(password))) throw new Error("连接密码保存后校验失败");
+    if (!(await verifyAdminPassword(password))) throw new Error("Connection password verification failed after saving");
 }
 
 export async function generateConnectionPassword(): Promise<string> {
@@ -320,7 +320,7 @@ export async function configureCloudflarePublicAccess(
             ...options,
             confirmDnsOverwrite: async (domain) => {
                 if (!input.allowDnsOverwrite) {
-                    throw new Error(`域名 ${domain} 已有其它 DNS 记录；请在控制台确认允许替换后重试`);
+                    throw new Error(`Domain ${domain} has another DNS record. Confirm replacement in the console, then try again`);
                 }
             },
         },
@@ -382,8 +382,8 @@ async function ensureRuntime(intent: RuntimeIntent, intentSpecified: boolean) {
 async function assertIntentReady(intent: Pick<RuntimeIntent, "local" | "noTunnel">): Promise<void> {
     if (intent.local) return;
     const config = loadUserConfig();
-    if (!config.publicAccess) throw new Error("还没有配置公网连接；请打开 Web Console 的“连接”页面，或运行 `codex-mcp setup`");
-    if (!(await hasAdminPassword())) throw new Error("还没有设置连接密码；请在 Web Console 的“连接”页面设置，或运行 `codex-mcp auth`");
+    if (!config.publicAccess) throw new Error("Public access is not configured; open the Connection page in Web Console or run `codex-mcp setup`");
+    if (!(await hasAdminPassword())) throw new Error("Connection password is not set; set it on the Connection page in Web Console or run `codex-mcp auth`");
     if (!intent.noTunnel && config.publicAccess.kind === "cloudflare") {
         await loadCommittedTunnelSetup(config, config.host ?? "127.0.0.1", config.port ?? 3920);
     }
@@ -398,7 +398,7 @@ function resolveProjectSelection<T extends RegisteredProject>(projects: T[], tar
     if (byId) return byId;
     const byName = projects.filter((item) => item.name === target);
     if (byName.length === 1) return byName[0];
-    if (byName.length > 1) throw new Error(`项目名 ${target} 不唯一，请使用项目 ID 或完整目录`);
+    if (byName.length > 1) throw new Error(`Project name ${target} is ambiguous. Use its project ID or full directory path`);
     try {
         const path = canonicalProjectPath(target);
         return projects.find((item) => item.path === path);

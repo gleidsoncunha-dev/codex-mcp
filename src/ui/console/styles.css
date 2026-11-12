@@ -36,7 +36,7 @@
     --radius-full: 999px;
     --console-code-bg: #16181d;
     --console-code-text: #e5e6eb;
-    --console-font: Inter, "PingFang SC", "Microsoft YaHei", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --console-font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --console-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 
     --el-color-primary: var(--color-primary);
@@ -248,7 +248,7 @@ code, pre, .mono { font-family: var(--console-mono); }
 
 @media (max-width: 600px) {
     .console-topbar { height: 58px; gap: var(--space-xs); padding: 0 14px; }
-    .console-mobile-nav { width: 120px !important; flex-basis: 120px; }
+    .console-mobile-nav { width: 136px !important; flex-basis: 136px; }
     .console-content { width: 100%; padding: 16px 14px 32px; overflow-x: hidden; }
     .metric-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     .metric-value { font-size: var(--font-xl); }

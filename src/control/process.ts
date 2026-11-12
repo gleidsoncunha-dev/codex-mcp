@@ -12,7 +12,7 @@ import { stopRuntime } from "./services.js";
 /** Internal detached process. User commands talk to it; it is not a public CLI surface. */
 export async function runControllerProcess(): Promise<void> {
     if (typeof process.send !== "function" || !process.connected) {
-        throw new Error("controller 是内部入口；请运行 codex-mcp start");
+        throw new Error("controller is an internal entry point; run codex-mcp start");
     }
 
     const startedAt = new Date().toISOString();
@@ -29,7 +29,7 @@ export async function runControllerProcess(): Promise<void> {
     let ready = false;
     const startup = new AbortController();
     const cancelStartup = () => {
-        if (!ready && !startup.signal.aborted) startup.abort(new Error("Controller 启动父进程已断开"));
+        if (!ready && !startup.signal.aborted) startup.abort(new Error("Controller startup parent process disconnected"));
     };
 
     const server = createControllerHttpServer({

@@ -98,7 +98,7 @@ test("Tunnel probe verifies exact instance, rejects redirects and honors one dea
     await verifyTunnelRoute(`${base}/mcp`, probe, options);
     mode = "wrong";
     const started = Date.now();
-    await assert.rejects(verifyTunnelRoute(`${base}/mcp`, probe, options), /不是当前|当前 codex-mcp/);
+    await assert.rejects(verifyTunnelRoute(`${base}/mcp`, probe, options), /not from this|this codex-mcp/);
     assert.ok(Date.now() - started < 2500);
     mode = "redirect";
     await assert.rejects(verifyTunnelRoute(`${base}/mcp`, probe, { ...options, signal: AbortSignal.timeout(60) }));

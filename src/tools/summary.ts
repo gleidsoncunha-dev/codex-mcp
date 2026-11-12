@@ -26,7 +26,7 @@ export function registerSummaryTool(server: McpServer, tryScope: ToolScopeTryPro
             const scope = tryScope();
             const text = summary.replace(/\s+/g, " ").trim();
             const structured = {
-                text, title: title?.trim() || "本轮处理结束", summary: text,
+                text, title: title?.trim() || "Round complete", summary: text,
                 endedAt: new Date().toISOString(), workspace: scope?.project.root ?? "unbound",
                 fileChanges: scope?.roundChanges.takeAndReset() ?? { count: 0, additions: 0, deletions: 0, files: [] },
             };

@@ -91,7 +91,7 @@ export class ProjectRuntimeManager {
             });
         }
         if (errors.length > 0) {
-            throw new AggregateError(errors, `项目 ${id} 的运行资源清理未完成，可重试 project remove`);
+            throw new AggregateError(errors, `Runtime resource cleanup for project ${id} is incomplete; retry project remove`);
         }
         if (this.runtimes.get(id) === runtime) this.runtimes.delete(id);
         if (this.capabilityRuntimes.get(id) === capability) this.capabilityRuntimes.delete(id);
@@ -102,7 +102,7 @@ export class ProjectRuntimeManager {
         const ids = new Set([...this.runtimes.keys(), ...this.capabilityRuntimes.keys()]);
         const results = await Promise.allSettled([...ids].map((id) => this.remove(id)));
         const errors = results.flatMap((result) => result.status === "rejected" ? [result.reason] : []);
-        if (errors.length) throw new AggregateError(errors, "部分项目运行资源清理失败");
+        if (errors.length) throw new AggregateError(errors, "Failed to clean up some project runtime resources");
     }
 
     private async createCapabilities(id: string, canonicalPath: string): Promise<ProjectCapabilityRuntime> {

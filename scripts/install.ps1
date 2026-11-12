@@ -31,55 +31,55 @@ function Success([string]$Message) {
 }
 
 function Fail([string]$Message) {
-    Write-Status "✗" Red "安装失败：$Message"
+    Write-Status "✗" Red "Installation failed: $Message"
     exit 1
 }
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    Fail "没有找到 Node.js。请先安装 Node.js 22 或更高版本。"
+    Fail "Node.js not found. Install Node.js 22 or later first."
 }
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-    Fail "没有找到 npm。重新安装 Node.js 通常可以解决。"
+    Fail "npm not found. Reinstalling Node.js usually fixes this."
 }
 
 $nodeVersionText = (& node -p "process.versions.node").Trim()
 try {
     $nodeMajor = ([version]$nodeVersionText).Major
 } catch {
-    Fail "无法识别 Node.js 版本：$nodeVersionText"
+    Fail "Cannot identify Node.js version: $nodeVersionText"
 }
 if ($nodeMajor -lt 22) {
-    Fail "当前 Node.js 版本是 $(& node -v)，需要 22 或更高版本。"
+    Fail "Current Node.js version is $(& node -v); version 22 or later is required."
 }
 
 $installRoot = Join-Path $env:USERPROFILE ".codex-mcp\npm"
 New-Item -ItemType Directory -Force -Path $installRoot | Out-Null
 
 if ($env:CODEX_MCP_UPDATE -eq "1") {
-    Info "正在更新 codex-mcp…"
+    Info "Updating codex-mcp…"
 } else {
-    Info "正在安装 codex-mcp…"
+    Info "Installing codex-mcp…"
 }
 & npm install --global --prefix $installRoot $Package
 if ($LASTEXITCODE -ne 0) {
-    Fail "npm 安装没有完成。请检查上面的错误信息。"
+    Fail "npm installation incomplete. Check the errors above."
 }
 
 $cmdPath = Join-Path $installRoot "codex-mcp.cmd"
 if (-not (Test-Path -LiteralPath $cmdPath)) {
-    Fail "安装完成，但没有找到 codex-mcp 命令：$cmdPath"
+    Fail "Installation complete, but the codex-mcp command was not found: $cmdPath"
 }
 
 $toolsCli = Join-Path $installRoot "node_modules\@meesii\codex-mcp\dist\managed-tools\cli.js"
 if (-not (Test-Path -LiteralPath $toolsCli)) {
-    Fail "安装完成，但缺少运行组件管理程序。"
+    Fail "Installation complete, but the runtime tool manager is missing."
 }
-Info "正在准备必要组件…"
+Info "Preparing required tools…"
 & node $toolsCli bootstrap
 if ($LASTEXITCODE -ne 0) {
-    Fail "必要组件准备失败。请检查网络后重新运行安装。"
+    Fail "Required tool preparation failed. Check your network and rerun installation."
 }
-Success "必要组件已准备"
+Success "Required tools ready"
 
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if (-not $userPath) { $userPath = "" }
@@ -100,13 +100,13 @@ $env:Path = "$installRoot;$env:Path"
 $version = & $cmdPath --version 2>$null
 Write-Host ""
 Success "codex-mcp $version"
-Success "命令目录已加入 PATH：$installRoot"
+Success "Command directory added to PATH: $installRoot"
 Write-Host ""
 if ($env:CODEX_MCP_UPDATE -eq "1") {
-    Success "更新完成。配置、连接密码和 Tunnel 信息保持不变。"
-    Warn "如果 codex-mcp 服务正在运行，请重启它；现有进程不会自动加载更新后的 core tool schema。"
+    Success "Update complete. Configuration, connection password, and Tunnel settings are preserved."
+    Warn "Restart any running codex-mcp service; existing processes do not automatically load the updated core tool schema."
 } else {
-    Info "第一次使用推荐运行：codex-mcp open"
-    Info "也可以进入项目目录直接运行：codex-mcp start"
-    Warn "如果其它终端窗口还找不到 codex-mcp，请重新打开终端。"
+    Info "For first use, run: codex-mcp open"
+    Info "Or run in a project directory: codex-mcp start"
+    Warn "If other terminals cannot find codex-mcp, reopen them."
 }

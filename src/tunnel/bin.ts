@@ -22,7 +22,7 @@ export async function resolveCloudflaredBin(
         return suggested;
     }
 
-    throw new Error("没有找到 cloudflared。请先安装 cloudflared，再运行 `codex-mcp setup`");
+    throw new Error("cloudflared not found. Install cloudflared, then run `codex-mcp setup`");
 }
 
 export async function suggestCloudflaredBin(
@@ -139,6 +139,6 @@ function assertExecutable(candidate: string): void {
     try {
         accessSync(candidate, constants.F_OK);
     } catch {
-        throw new Error(`找不到 cloudflared：${candidate}`);
+        throw new Error(`cloudflared not found: ${candidate}`);
     }
 }

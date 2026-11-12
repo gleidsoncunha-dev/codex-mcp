@@ -35,7 +35,7 @@ test("startup deadline cleans up its child and descendants", { timeout: 10000 },
     const previous = process.argv[1];
     process.argv[1] = fixture;
     try {
-        await assert.rejects(startDaemonForIntent({ local: true, noTunnel: false, tunnelLogs: false }, { timeoutMs: 1000 }), /启动超时/);
+        await assert.rejects(startDaemonForIntent({ local: true, noTunnel: false, tunnelLogs: false }, { timeoutMs: 1000 }), /startup timed out/);
         assert.ok(existsSync(heartbeat));
         const last = readFileSync(heartbeat, "utf8");
         await delay(120);
@@ -71,7 +71,7 @@ test("cloudflared observed lifecycle has bounded recovery and stop cancels readi
         assert.equal(states.at(-1).state, "off");
         writeFileSync(fixture, "setInterval(()=>{},1000);");
         const starting = sidecar.start();
-        const rejected = assert.rejects(starting, /退出|准备/);
+        const rejected = assert.rejects(starting, /exited|ready/);
         await delay(80);
         await sidecar.stop();
         await rejected;
@@ -93,7 +93,7 @@ test("captured cloudflared operations surface login output and honor cancellatio
     });
     await until(() => output.includes("https://dash.cloudflare.com/argotunnel"));
     controller.abort(new Error("cancel login"));
-    await assert.rejects(running, /cancel login|取消/);
+    await assert.rejects(running, /cancel login|cancelled/);
     assert.match(output, /https:\/\/dash\.cloudflare\.com\/argotunnel/);
 });
 

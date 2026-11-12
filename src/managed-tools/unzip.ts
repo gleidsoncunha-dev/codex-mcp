@@ -22,7 +22,7 @@ export async function extractZipFile(zipPath: string, destDir: string): Promise<
 
         const target = resolve(destRoot, relativeName);
         if (!isInside(destRoot, target) || target === destRoot) {
-            throw new Error(`zip 包含非法路径：${entryName}`);
+            throw new Error(`zip contains an invalid path: ${entryName}`);
         }
 
         await mkdir(dirname(target), { recursive: true });
@@ -34,7 +34,7 @@ function unzipEntries(bytes: Uint8Array): Promise<Record<string, Uint8Array>> {
     return new Promise((resolveEntries, reject) => {
         unzip(bytes, (error, data) => {
             if (error || !data) {
-                reject(error ?? new Error("zip 解压失败"));
+                reject(error ?? new Error("zip extraction failed"));
                 return;
             }
             resolveEntries(data);

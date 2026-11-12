@@ -21,14 +21,14 @@ export async function probeMcpHandler(handler: ProbeHandler, url: string, authen
             ? text.split(/\r?\n/).filter((line) => line.startsWith("data: ")).map((line) => JSON.parse(line.slice(6)))
             : [JSON.parse(text)];
         const message = messages.find((item) => item.id === body.id);
-        if (!response.ok || !message || message.error || message.result?.isError) throw new Error("服务没有正确响应工具检查，请重新启动后重试。");
+        if (!response.ok || !message || message.error || message.result?.isError) throw new Error("The service did not respond correctly to tool checks. Restart it and try again.");
         return message.result;
     }
     await request("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "codex-console-check", version: "1" } });
     const listed = await request("tools/list", {});
-    if (!Array.isArray(listed.tools) || !listed.tools.some((tool: { name: string }) => tool.name === "project_control")) throw new Error("项目工具不可用，请检查工具设置。");
-    const result = await request("tools/call", { name: "project_control", arguments: { action: "list", purpose: "检查项目列表是否可以读取" } });
+    if (!Array.isArray(listed.tools) || !listed.tools.some((tool: { name: string }) => tool.name === "project_control")) throw new Error("Project tools are unavailable. Check tool settings.");
+    const result = await request("tools/call", { name: "project_control", arguments: { action: "list", purpose: "Check that the project list is readable" } });
     const projects = result.structuredContent?.projects;
-    if (!Array.isArray(projects)) throw new Error("无法读取项目列表，请重新启动服务后重试。");
+    if (!Array.isArray(projects)) throw new Error("Cannot read the project list. Restart the service and try again.");
     return { toolCount: listed.tools.length, projectCount: projects.length };
 }

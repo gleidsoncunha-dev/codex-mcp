@@ -81,7 +81,7 @@ export async function createOAuthRuntime(resourceUrl: URL): Promise<OAuthRuntime
             res.setHeader("Retry-After", String(24 * 60 * 60));
             res.status(429).json({
                 error: "temporarily_unavailable",
-                error_description: "连接请求太频繁，请稍后再试。",
+                error_description: "Too many connection requests. Please try again later.",
             });
             return;
         }
@@ -95,7 +95,7 @@ export async function createOAuthRuntime(resourceUrl: URL): Promise<OAuthRuntime
         res.setHeader("Retry-After", String(rule.retryAfterSeconds));
         res.status(429).json({
             error: "temporarily_unavailable",
-            error_description: "连接请求太频繁，请稍后再试。",
+            error_description: "Too many connection requests. Please try again later.",
         });
     });
 
@@ -125,12 +125,12 @@ export async function createOAuthRuntime(resourceUrl: URL): Promise<OAuthRuntime
             const key = requestClientKey(req);
             if (!approveGlobalLimiter.take("global") || !approveLimiter.take(key)) {
                 res.setHeader("Retry-After", String(Math.ceil(APPROVE_WINDOW_MS / 1000)));
-                res.status(429).send(renderMessagePage("尝试过于频繁", "请稍后重新发起授权。"));
+                res.status(429).send(renderMessagePage("Too many attempts", "Start authorization again later."));
                 return;
             }
             if (activeApprovals >= APPROVE_MAX_CONCURRENT) {
                 res.setHeader("Retry-After", "2");
-                res.status(429).send(renderMessagePage("授权繁忙", "请稍后重试。"));
+                res.status(429).send(renderMessagePage("Authorization busy", "Please try again later."));
                 return;
             }
 
@@ -230,7 +230,7 @@ function setNoStore(res: express.Response): void {
 }
 
 function renderMessagePage(title: string, message: string): string {
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#f6f7f9;color:#18181b;margin:0}main{max-width:420px;margin:12vh auto;padding:28px;background:#fff;border:1px solid #e4e4e7;border-radius:14px}h1{font-size:20px}p{color:#52525b;line-height:1.5}</style></head><body><main><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p></main></body></html>`;
+    return `<!doctype html><html lang="en-US"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#f6f7f9;color:#18181b;margin:0}main{max-width:420px;margin:12vh auto;padding:28px;background:#fff;border:1px solid #e4e4e7;border-radius:14px}h1{font-size:20px}p{color:#52525b;line-height:1.5}</style></head><body><main><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p></main></body></html>`;
 }
 
 function escapeHtml(value: string): string {

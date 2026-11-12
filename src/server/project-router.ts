@@ -57,20 +57,20 @@ export function currentBindingOwnerKey(fallbackOwnerId: string): string {
 export function unboundProjectMessage(activeProjects: RegisteredProject[]): string {
     if (activeProjects.length === 0) {
         return [
-            "这个会话还没有绑定项目，而且当前没有已注册的项目。请让用户先在项目目录里运行 codex-mcp start 注册项目。",
-            "注册后调用 project_control(action=select, project_id=...)。",
-            "如果 project_control 不在 ChatGPT 已批准的 action snapshot 中，请 Refresh 或重新发布 MCP app actions。",
+            "This session has no project binding and no projects are registered. Ask the user to run codex-mcp start in a project directory first.",
+            "After registration, call project_control(action=select, project_id=...).",
+            "If project_control is absent from the approved ChatGPT action snapshot, refresh or republish MCP app actions.",
         ].join("\n");
     }
     const list = activeProjects
-        .map((item) => `- ${item.id}（${item.name}）${item.path}`)
+        .map((item) => `- ${item.id} (${item.name})${item.path}`)
         .join("\n");
     return [
-        "当前会话还没有绑定项目，因此不能读写文件、执行命令或查看 Git 状态。",
-        "请先向用户确认要用哪个项目，不要自动猜测：",
+        "This session has no project binding, so it cannot read or write files, run commands, or inspect Git status.",
+        "Ask the user which project to use before continuing: ",
         list,
-        "调用 project_control(action=select, project_id=\"<确认的项目 id>\")。",
-        "如果 project_control 不可见，请 Refresh 或重新发布 MCP app actions；已删除的旧项目工具不再提供兼容入口。",
+        "Call project_control(action=select, project_id=\"<confirmed project ID>\").",
+        "If project_control is not visible, refresh or republish MCP app actions; removed legacy project tools have no compatibility entry points.",
     ].join("\n");
 }
 
@@ -131,7 +131,7 @@ export class BindingProjectScopeProvider {
             const detail = error instanceof Error ? error.message : String(error);
             throw new UnboundProjectError(
                 [
-                    `已绑定的项目当前不可用（${detail}）。请让用户重新运行 codex-mcp start 注册项目，或明确选择其他项目。`,
+                    `The bound project is unavailable (${detail}). Ask the user to register it again with codex-mcp start or explicitly select another project.`,
                     unboundProjectMessage(activeProjects),
                 ].join("\n"),
                 activeProjects,

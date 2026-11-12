@@ -51,7 +51,7 @@ export function registerProjectTools(server: McpServer, deps: ProjectToolDeps): 
             if (action === "select") await bindProject(deps, projectId, projectPath, force);
             else if (action === "unbind") await unbindProject(deps, ownerKey);
             else if (projectId !== undefined || projectPath !== undefined || force !== undefined) {
-                throw new Error("project_id、project_path 和 force 仅适用于 action=select。");
+                throw new Error("project_id, project_path, and force only apply to action=select.");
             }
 
             const binding = bindings.resolve(ownerKey) ?? null;
@@ -73,13 +73,13 @@ export function registerProjectTools(server: McpServer, deps: ProjectToolDeps): 
 async function bindProject(deps: ProjectToolDeps, projectId?: string, projectPath?: string, force?: boolean): Promise<void> {
     const hasId = Boolean(projectId?.trim());
     const hasPath = Boolean(projectPath?.trim());
-    if (hasId === hasPath) throw new Error("action=select 需要且只需要 project_id 或 project_path。");
+    if (hasId === hasPath) throw new Error("action=select requires exactly one of project_id or project_path.");
     const selected = hasId ? deps.registry.getActiveById(projectId!.trim()) : selectByPath(deps.registry, projectPath!.trim());
-    if (!selected) throw new Error("没有找到指定的活动项目。");
+    if (!selected) throw new Error("The specified active project was not found.");
     const ownerKey = currentBindingOwnerKey(deps.fallbackOwnerId);
     const existing = deps.bindings.resolve(ownerKey);
     if (existing && existing.projectId !== selected.id && force !== true) {
-        throw new Error("这个会话已经绑定其他项目；用户确认切换后请传 force=true。");
+        throw new Error("This session is bound to another project; pass force=true after the user confirms switching.");
     }
     if (existing && existing.projectId !== selected.id) {
         await deps.runtimes.shutdownOwner(existing.projectId, ownerKey);

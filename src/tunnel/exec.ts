@@ -80,7 +80,7 @@ export async function runCloudflared(
             aborted = true;
             abortReason = options.signal?.reason instanceof Error
                 ? options.signal.reason
-                : new Error("cloudflared 操作已取消");
+                : new Error("cloudflared Operation cancelled");
             void terminateChildProcess(child).catch((error) => {
                 if (settled) return;
                 settled = true;
@@ -107,11 +107,11 @@ export async function runCloudflared(
             clearTimeout(timer);
             options.signal?.removeEventListener("abort", onAbort);
             if (aborted) {
-                reject(abortReason ?? new Error("cloudflared 操作已取消"));
+                reject(abortReason ?? new Error("cloudflared Operation cancelled"));
                 return;
             }
             if (timedOut) {
-                reject(new Error(`cloudflared 运行超时：${args.join(" ")}`));
+                reject(new Error(`cloudflared execution timed out: ${args.join(" ")}`));
                 return;
             }
             resolve({ code, stdout, stderr });
@@ -119,8 +119,8 @@ export async function runCloudflared(
     });
 
     if (!options.allowFailure && result.code !== 0) {
-        const detail = (result.stderr || result.stdout).trim() || `退出代码 ${result.code}`;
-        throw new Error(`cloudflared 执行失败（${args.join(" ")}）：${detail}`);
+        const detail = (result.stderr || result.stdout).trim() || `Exit code ${result.code}`;
+        throw new Error(`cloudflared execution failed (${args.join(" ")}): ${detail}`);
     }
     return result;
 }

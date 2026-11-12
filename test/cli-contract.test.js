@@ -75,7 +75,7 @@ test("1.0 exposes the explicit start command and rejects removed commands", () =
     for (const removed of ["tunnel", "exit", "serve"]) {
         const result = run([removed]);
         assert.notEqual(result.code, 0);
-        assert.match(result.output, /不认识/);
+        assert.match(result.output, /Unknown/);
     }
 });
 
@@ -83,17 +83,17 @@ test("1.0 rejects removed flags and keeps -f scoped to logs", () => {
     for (const args of [["start", "--foreground"], ["start", "--all"], ["--foreground"]]) {
         const result = run(args);
         assert.notEqual(result.code, 0);
-        assert.match(result.output, /不认识这个选项|不认识这个命令/);
+        assert.match(result.output, /Unknown option|Unknown command/);
     }
     const invalidFollow = run(["status", "-f"]);
     assert.notEqual(invalidFollow.code, 0);
-    assert.match(invalidFollow.output, /只适用于 `logs`/);
+    assert.match(invalidFollow.output, /only applies to `logs`/);
     const conflictingMode = run(["start", "--local", "--public"]);
     assert.notEqual(conflictingMode.code, 0);
-    assert.match(conflictingMode.output, /不能同时/);
+    assert.match(conflictingMode.output, /cannot be used together/);
     const projectMode = run(["project", "add", ".", "--local"]);
     assert.notEqual(projectMode.code, 0);
-    assert.match(projectMode.output, /不适用于/);
+    assert.match(projectMode.output, /does not apply to/);
 });
 
 test("Web Console keeps Element Plus component-scoped imports and a focused information architecture", () => {
@@ -115,15 +115,15 @@ test("Web Console keeps Element Plus component-scoped imports and a focused info
     assert.match(stylesSource, /\.console-topbar\s*\{[^}]*height:\s*64px/s);
     assert.match(stylesSource, /\.console-content\s*\{[^}]*width:\s*100%[^}]*padding:\s*var\(--space-xl\)/s);
     assert.match(stylesSource, /\.page-heading h1\s*\{\s*display:\s*none/s);
-    assert.match(connectSource, /1\. 公网地址/);
-    assert.match(connectSource, /2\. 连接密码/);
-    assert.match(connectSource, /3\. 检查连接/);
-    assert.doesNotMatch(connectSource, /工具与技能/);
+    assert.match(connectSource, /1\. Public address/);
+    assert.match(connectSource, /2\. Connection password/);
+    assert.match(connectSource, /3\. Check connection/);
+    assert.doesNotMatch(connectSource, /Tools and skills/);
     assert.match(systemSource, /CapabilitiesPanel/);
     const capabilitySource = readFileSync(fileURLToPath(new URL("src/ui/console/components/CapabilitiesPanel.vue", root)), "utf8");
     assert.doesNotMatch(capabilitySource, /structuredClone\(value\)/);
     assert.match(capabilitySource, /const dirty = ref\(false\)/);
-    assert.match(capabilitySource, /放弃修改/);
+    assert.match(capabilitySource, /Discard changes/);
     const appSource = readFileSync(fileURLToPath(new URL("src/ui/console/App.vue", root)), "utf8");
     assert.match(appSource, /cloudflare\/discover[^\n]*forceLogin:\s*false/);
     assert.match(appSource, /\/api\/console\/snapshot/);
@@ -131,11 +131,11 @@ test("Web Console keeps Element Plus component-scoped imports and a focused info
     assert.match(appSource, /visibilitychange/);
     assert.match(appSource, /busyOwners/);
     assert.match(appSource, /sidebarCollapsed/);
-    assert.match(appSource, /收起导航/);
-    assert.match(projectsSource, /重新启用/);
-    assert.match(homeSource, /还有检查项需要处理/);
-    assert.doesNotMatch(homeSource, /还有项目要处理/);
-    assert.match(systemSource, /实时日志连接暂时中断，正在自动重连/);
+    assert.match(appSource, /Collapse navigation/);
+    assert.match(projectsSource, /Reactivate/);
+    assert.match(homeSource, /Some checks need attention/);
+    assert.doesNotMatch(homeSource, /Some projects need attention/);
+    assert.match(systemSource, /Live log connection interrupted. Reconnecting automatically/);
     assert.match(systemSource, /logs\/stream\?lines=/);
 });
 
@@ -224,7 +224,7 @@ test("read-only commands work from a clean home", () => {
 
     const projects = run(["project", "list"], home);
     assert.equal(projects.code, 0);
-    assert.match(projects.output, /还没有注册项目/);
+    assert.match(projects.output, /No projects registered/);
 });
 
 test("project add changes durable project state without starting Controller or Runtime", () => {
@@ -277,7 +277,7 @@ test("explicit public start persists the requested mode even when prerequisites 
     try {
         const result = run(["start", "--public"], home, project);
         assert.notEqual(result.code, 0, result.output);
-        assert.match(result.output, /Web Console|连接.*页面/);
+        assert.match(result.output, /Web Console|Connection.*page/);
         const saved = JSON.parse(readFileSync(join(configDir, "config.json"), "utf8"));
         assert.deepEqual(saved.runtime, { mode: "public", noTunnel: false, tunnelLogs: false });
         const status = JSON.parse(run(["status", "--json"], home, project).output);
@@ -298,7 +298,7 @@ test("open starts only the local control plane and exposes the Web Console", asy
         assert.ok(result.output.includes(panelUrl), result.output);
         const panel = await fetch(panelUrl);
         assert.equal(panel.status, 200);
-        assert.match(await panel.text(), /codex-mcp 本机工作区/);
+        assert.match(await panel.text(), /codex-mcp Local workspace/);
         const cliProject = mkdtempSync(join(tmpdir(), "codex-mcp-open-cli-project-"));
         const webProject = mkdtempSync(join(tmpdir(), "codex-mcp-open-web-project-"));
         const snapshotHeaders = { "x-codex-controller-token": controller.controlToken };
@@ -350,7 +350,7 @@ test("start registers the project before Runtime validation and leaves Web recov
     try {
         const result = run(["start"], home, project);
         assert.notEqual(result.code, 0);
-        assert.match(result.output, /还没有配置公网连接/);
+        assert.match(result.output, /Public access is not configured/);
         assert.match(result.output, /Web Console/);
         const projects = JSON.parse(readFileSync(join(configDir, "projects.json"), "utf8"));
         assert.equal(projects.projects.length, 1);
@@ -369,7 +369,7 @@ test("corrupt durable state fails closed", () => {
     writeFileSync(join(dir, "projects.json"), JSON.stringify({ projects: [] }));
     const result = run(["project", "list"], home);
     assert.notEqual(result.code, 0);
-    assert.match(result.output, /无法读取有效的项目状态/);
+    assert.match(result.output, /Cannot read valid project state/);
 });
 
 test("invalid records are not silently discarded", () => {
@@ -379,7 +379,7 @@ test("invalid records are not silently discarded", () => {
     writeFileSync(join(dir, "projects.json"), JSON.stringify({ schemaVersion: 1, projects: [{ id: "broken" }] }));
     const result = run(["project", "list"], home);
     assert.notEqual(result.code, 0);
-    assert.match(result.output, /无法读取有效的项目状态/);
+    assert.match(result.output, /Cannot read valid project state/);
 });
 
 test("project identity is collision-resistant and durable state rejects duplicate routing keys", async () => {
@@ -423,7 +423,7 @@ test("1.0 rejects legacy config keys instead of silently migrating them", () => 
     const home = mkdtempSync(join(tmpdir(), "codex-mcp-1-0-"));
     mkdirSync(join(home, ".codex-mcp"), { recursive: true });
     writeFileSync(join(home, ".codex-mcp", "config.json"), JSON.stringify({ domain: "legacy.example.com" }));
-    const script = `process.env.HOME=${JSON.stringify(home)}; process.env.USERPROFILE=${JSON.stringify(home)}; const { loadUserConfig } = await import(${JSON.stringify(new URL("dist/config/user-config.js", root).href)}); try { loadUserConfig(); process.exit(2); } catch (error) { if (!String(error?.message).includes("不支持的字段")) process.exit(3); }`;
+    const script = `process.env.HOME=${JSON.stringify(home)}; process.env.USERPROFILE=${JSON.stringify(home)}; const { loadUserConfig } = await import(${JSON.stringify(new URL("dist/config/user-config.js", root).href)}); try { loadUserConfig(); process.exit(2); } catch (error) { if (!String(error?.message).includes("unsupported fields")) process.exit(3); }`;
     execFileSync(process.execPath, ["--input-type=module", "-e", script], { stdio: "pipe" });
 });
 
@@ -497,7 +497,7 @@ test("persistent local Controller exposes writable Web Console and survives Runt
         const panel = await fetch(panelUrl);
         const panelHtml = await panel.text();
         assert.equal(panel.status, 200);
-        assert.match(panelHtml, /codex-mcp 本机工作区/);
+        assert.match(panelHtml, /codex-mcp Local workspace/);
         assert.match(panelHtml, /data-csrf-token="[A-Za-z0-9_-]+"/);
         assert.match(panelHtml, /src="\/console\/app\.js"/);
         assert.match(panelHtml, /href="\/console\/app\.css"/);
@@ -565,10 +565,10 @@ test("persistent local Controller exposes writable Web Console and survives Runt
         assert.ok(webAddedProject?.id);
         const listed = run(["project", "list"], home, project);
         assert.equal(listed.code, 0, listed.output);
-        assert.match(listed.output, /2 个项目/);
+        assert.match(listed.output, /2 projects/);
         const info = run(["project", "info", secondProject], home, project);
         assert.equal(info.code, 0, info.output);
-        assert.match(info.output, /项目详情/);
+        assert.match(info.output, /Project details/);
 
         const stopResponse = await fetch(new URL("/api/runtime/stop", panelUrl), {
             method: "POST",
@@ -698,7 +698,7 @@ test("daemon control protocol is versioned and tolerates additive same-version f
     assert.equal(normalizeDaemonStatusPayload(payload).pid, 123);
     assert.throws(
         () => normalizeDaemonStatusPayload({ ...payload, controlApiVersion: 2 }),
-        /控制协议版本不兼容/,
+        /control protocol version incompatible/,
     );
 });
 
@@ -790,22 +790,22 @@ test("interactive commands fail clearly without a terminal; internal daemon entr
     for (const command of ["setup", "auth"]) {
         const result = run([command]);
         assert.notEqual(result.code, 0, result.output);
-        assert.match(result.output, /终端/);
+        assert.match(result.output, /terminal/);
     }
     const bindings = run(["bindings", "clean"]);
     assert.notEqual(bindings.code, 0);
-    assert.match(bindings.output, /终端/);
+    assert.match(bindings.output, /terminal/);
     const daemon = run(["daemon", "--local"]);
     assert.notEqual(daemon.code, 0);
-    assert.match(daemon.output, /内部入口/);
+    assert.match(daemon.output, /internal entry point/);
     const controller = run(["controller"]);
     assert.notEqual(controller.code, 0);
-    assert.match(controller.output, /内部入口/);
+    assert.match(controller.output, /internal entry point/);
     assert.notEqual(run(["project", "list", "unexpected"]).code, 0);
     const doctor = run(["doctor"]);
     assert.ok([0, 1].includes(doctor.code), doctor.output);
-    assert.match(doctor.output, /codex-mcp 检查/);
-    assert.doesNotMatch(doctor.output, /需要交互式终端|必须在交互式终端/);
+    assert.match(doctor.output, /codex-mcp checks/);
+    assert.doesNotMatch(doctor.output, /requires an interactive terminal|must run in an interactive terminal/);
     const stopped = run(["stop"]);
     assert.equal(stopped.code, 0, stopped.output);
     assert.notEqual(run(["restart"]).code, 0);
@@ -820,6 +820,6 @@ test("update reports local installer failure and preserves existing configuratio
     writeFileSync(config, original);
     const result = run(["update"], home, home, { CODEX_MCP_PACKAGE: join(home, "missing-release.tgz"), npm_config_offline: "true" });
     assert.notEqual(result.code, 0);
-    assert.match(result.output, /更新没有完成/);
+    assert.match(result.output, /Update incomplete/);
     assert.equal(readFileSync(config, "utf8"), original);
 });

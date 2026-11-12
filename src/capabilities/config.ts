@@ -51,7 +51,7 @@ export function describeEnabledCapabilitySources(config: ResolvedCapabilitiesCon
             if (source === "claude") return "Claude Code";
             return "Codex";
         });
-    return enabled.length > 0 ? enabled.join(" + ") : "未启用";
+    return enabled.length > 0 ? enabled.join(" + ") : "Disabled";
 }
 
 function resolveSource(

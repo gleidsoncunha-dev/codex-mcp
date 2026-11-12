@@ -24,7 +24,7 @@ export function getCloudflaredRevisionDir(): string {
 
 export function getCloudflaredRevisionPath(revision: string): string {
     if (!/^[a-zA-Z0-9_-]{8,80}$/.test(revision)) {
-        throw new Error("Tunnel 配置 revision 格式不正确");
+        throw new Error("Tunnel configuration revision has an invalid format");
     }
     return join(getCloudflaredRevisionDir(), `${revision}.yml`);
 }
@@ -60,7 +60,7 @@ export function readCloudflaredYml(
     filePath: string,
 ): CloudflaredYml {
     if (!existsSync(filePath)) {
-        throw new Error(`没有找到 cloudflared 配置：${filePath}`);
+        throw new Error(`cloudflared configuration not found: ${filePath}`);
     }
     const raw = readFileSync(filePath, "utf8");
     const tunnelId = matchLine(raw, /^tunnel:\s*(.+)$/m);
@@ -72,16 +72,16 @@ export function readCloudflaredYml(
     const serviceUrl = matchLine(raw, /^\s*service:\s*(https?:\/\/.+)$/m);
 
     if (!tunnelId) {
-        throw new Error(`Tunnel 配置里缺少 ID：${filePath}`);
+        throw new Error(`Tunnel configuration is missing ID: ${filePath}`);
     }
     if (!credentialsFile) {
-        throw new Error(`Tunnel 配置里缺少凭据文件：${filePath}`);
+        throw new Error(`Tunnel configuration is missing credentials file: ${filePath}`);
     }
     if (!hostname) {
-        throw new Error(`Tunnel 配置里缺少域名：${filePath}`);
+        throw new Error(`Tunnel configuration is missing domain: ${filePath}`);
     }
     if (!serviceUrl) {
-        throw new Error(`Tunnel 配置里缺少本机服务地址：${filePath}`);
+        throw new Error(`Tunnel configuration is missing local service address: ${filePath}`);
     }
 
     return {

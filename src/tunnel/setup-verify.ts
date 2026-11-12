@@ -61,7 +61,7 @@ export async function verifySetupPublicRoute(
         let tunnel: SetupPublicVerificationResult["tunnel"];
         if (route.useCloudflared) {
             if (!route.bin || !route.tunnelId || !route.configPath) {
-                throw new Error("Cloudflare Tunnel 配置不完整，无法验证公网连接");
+                throw new Error("Cloudflare Tunnel configuration is incomplete; cannot verify public access");
             }
             sidecar = new CloudflaredSidecar({
                 bin: route.bin,
@@ -104,7 +104,7 @@ export async function verifyRunningPublicRoute(
     ]);
     if (localHealth !== publicHealth) {
         throw new Error(
-            "本机端口已经有 codex-mcp 在运行，但公网地址没有指向同一个实例。请停止当前服务后重新运行 setup，或检查 Tunnel / DNS 配置。",
+            "codex-mcp is running on the local port, but the public address points to another instance. Stop the current service and rerun setup, or check Tunnel / DNS settings.",
         );
     }
     return { publicMcpUrl: `https://${domain}/mcp` };
@@ -119,11 +119,11 @@ export async function assertSetupPortAvailable(
     if (state === "available") return;
     if (state === "codex-mcp") {
         throw new Error(
-            `本机端口 ${port} 上有 codex-mcp 在运行，但缺少可用的 daemon 状态，无法安全停止。` +
-            "请先结束这个已有进程，再重新运行 setup；尚未修改 Cloudflare。",
+            `codex-mcp is running on local port ${port}, but usable daemon state is missing, so it cannot be stopped safely.` +
+            "Stop the existing process, then run setup again. Cloudflare has not been modified.",
         );
     }
-    throw new Error(`本机端口 ${port} 已被其它程序占用；尚未修改 Cloudflare`);
+    throw new Error(`Local port ${port} is in use by another program; Cloudflare has not been modified`);
 }
 
 /** Read-only classification used to recognize an existing local codex-mcp instance. */
@@ -166,13 +166,13 @@ async function readHealthInstance(
         headers: { Accept: "application/json" },
     });
     if (response.status !== 200) {
-        throw new Error(`codex-mcp 健康检查失败：${url} 返回 HTTP ${response.status}`);
+        throw new Error(`codex-mcp health check failed: ${url} returned HTTP ${response.status}`);
     }
     let payload: unknown;
     try {
         payload = JSON.parse(response.body.toString("utf8"));
     } catch {
-        throw new Error(`codex-mcp 健康检查返回了无法识别的内容：${url}`);
+        throw new Error(`codex-mcp health check returned unrecognized content: ${url}`);
     }
     if (
         !payload ||
@@ -181,7 +181,7 @@ async function readHealthInstance(
         typeof (payload as { instance?: unknown }).instance !== "string" ||
         (payload as { instance: string }).instance.length < 16
     ) {
-        throw new Error(`端口上的服务不是支持 setup 验证的当前版 codex-mcp：${url}。请重启该服务后再检查。`);
+        throw new Error(`The service at ${url} is not a current codex-mcp version supporting setup verification. Restart it before checking again.`);
     }
     return (payload as { instance: string }).instance;
 }
@@ -214,7 +214,7 @@ async function listenProbeServer(server: Server, host: string, port: number): Pr
         const onError = (error: NodeJS.ErrnoException): void => {
             server.off("listening", onListening);
             if (error.code === "EADDRINUSE") {
-                reject(new SetupPortInUseError(`本机端口 ${port} 已被占用`));
+                reject(new SetupPortInUseError(`Local port ${port} is already in use`));
                 return;
             }
             reject(error);

@@ -66,39 +66,39 @@ import { runDoctorService, selfUpdate } from "./control/services.js";
 function printUsage(): void {
     printIntro("codex-mcp");
     printNote(
-        "常用命令",
+        "Common commands",
         [
-            "codex-mcp start                   注册当前项目并确保后台服务运行",
-            "codex-mcp open                    打开本机 Web Console（不启动 Runtime）",
-            "codex-mcp status                  查看控制面、Runtime、Tunnel 和项目状态",
-            "codex-mcp restart                 重启 MCP Runtime 并保留项目注册状态",
-            "codex-mcp stop                    停止 MCP Runtime；Web Console 保持在线",
-            "codex-mcp shutdown                完全关闭 Runtime 和 Web Console",
-            "codex-mcp project list            查看已注册项目",
-            "codex-mcp project add [目录]      注册项目（默认当前目录）",
-            "codex-mcp project remove [项目]   停用项目（默认当前目录）",
-            "codex-mcp project info [项目]     查看项目详情",
-            "codex-mcp bindings clean [项目]   清理项目的会话绑定",
-            "codex-mcp logs [--lines N]        查看最近运行日志",
-            "codex-mcp logs -f                 持续跟随运行日志",
-            "codex-mcp setup                   设置 / 管理公网连接",
-            "codex-mcp doctor [--fix]          检查配置；--fix 只做安全本机修复",
-            "codex-mcp auth                    修改连接密码",
-            "codex-mcp update                  更新到最新版本",
+            "codex-mcp start                   Register the current project and ensure the background service is running",
+            "codex-mcp open                    Open the local Web Console without starting Runtime",
+            "codex-mcp status                  Show control plane, Runtime, Tunnel, and project status",
+            "codex-mcp restart                 Restart MCP Runtime and keep project registrations",
+            "codex-mcp stop                    Stop MCP Runtime; keep Web Console running",
+            "codex-mcp shutdown                Shut down Runtime and Web Console",
+            "codex-mcp project list            List registered projects",
+            "codex-mcp project add [directory]      Register a project (current directory by default)",
+            "codex-mcp project remove [project]   Deactivate a project (current directory by default)",
+            "codex-mcp project info [project]     Show project details",
+            "codex-mcp bindings clean [project]   Clear project session bindings",
+            "codex-mcp logs [--lines N]        Show recent runtime logs",
+            "codex-mcp logs -f                 Follow runtime logs",
+            "codex-mcp setup                   Set up or manage public access",
+            "codex-mcp doctor [--fix]          Check configuration; --fix performs safe local repairs only",
+            "codex-mcp auth                    Change connection password",
+            "codex-mcp update                  Update to the latest version",
         ].join("\n"),
     );
     printNote(
-        "其他",
+        "Other",
         [
-            "codex-mcp status --json           输出机器可读状态",
-            "codex-mcp start --local           注册当前项目并切换为本机模式",
-            "codex-mcp start --public          注册当前项目并切换为公网模式",
-            "codex-mcp start --root <目录>     指定 start 的项目目录",
-            "codex-mcp --version               查看版本",
+            "codex-mcp status --json           Output machine-readable status",
+            "codex-mcp start --local           Register the current project and switch to local mode",
+            "codex-mcp start --public          Register the current project and switch to public mode",
+            "codex-mcp start --root <directory>     Specify the project directory for start",
+            "codex-mcp --version               Show version",
         ].join("\n"),
     );
-    printInfo("多数情况下：进入项目目录运行 codex-mcp start；想用图形界面则运行 codex-mcp open。");
-    printOutro("未配置公网连接时，start 默认使用本机模式；需要连接 ChatGPT 再运行 setup 或在 Web Console 配置");
+    printInfo("Usually, run codex-mcp start in a project directory. Run codex-mcp open for the graphical interface.");
+    printOutro("Without public access configured, start defaults to local mode. To connect ChatGPT, run setup or configure Web Console.");
 }
 
 /**
@@ -257,7 +257,7 @@ function startupCleanupError(original: unknown, cleanupErrors: unknown[]): unkno
         ? original
         : new AggregateError(
               [original, ...cleanupErrors],
-              `启动失败，且 ${cleanupErrors.length} 项本机资源清理未完成`,
+              `Startup failed; cleanup of ${cleanupErrors.length} local resources is incomplete`,
           );
 }
 
@@ -277,20 +277,20 @@ async function startServices(options: StartServicesOptions): Promise<StartedServ
     });
 
     if (!flags.local && config.allowedHosts.length === 0) {
-        throw new Error("还没有设置公网地址，请先运行 `codex-mcp setup`；只在本机使用请运行 `codex-mcp start --local`");
+        throw new Error("Public address is not set. Run `codex-mcp setup`, or use `codex-mcp start --local` for local access only");
     }
 
     let logDirectory: string | undefined;
     try {
         const info = await initializeRuntimeLog({
             onError: (error) => {
-                printWarning(`文件日志已停止：${error.message}`);
+                printWarning(`File logging stopped: ${error.message}`);
             },
         });
         logDirectory = info.directory;
     } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
-        printWarning(`文件日志不可用，服务将继续启动：${detail}`);
+        printWarning(`File logging unavailable; the service will continue starting: ${detail}`);
     }
 
     let tunnelSetup: TunnelSetupResult | undefined;
@@ -313,12 +313,12 @@ async function startServices(options: StartServicesOptions): Promise<StartedServ
         loadConfig: () => capabilities.loadMcpConfig(),
     });
     if (hub.getImportError()) {
-        printWarning(`外部 MCP 配置加载失败；核心服务会继续启动：${hub.getImportError()}`);
+        printWarning(`Failed to load external MCP configuration; core services will continue starting: ${hub.getImportError()}`);
     }
     const skills = capabilities.createSkillRegistry();
     for (const diagnostic of capabilities.getDiagnostics(skills)) {
         for (const warning of diagnostic.warnings) {
-            printWarning(`${diagnostic.source} 能力源：${warning}`);
+            printWarning(`${diagnostic.source} capability source: ${warning}`);
         }
     }
     const server = createHttpServer(config, {
@@ -383,7 +383,7 @@ async function startServices(options: StartServicesOptions): Promise<StartedServ
         signal.removeEventListener("abort", cancelSidecar);
     }
 
-    if (!capabilityWatcher) throw new Error("Capability watcher 没有启动");
+    if (!capabilityWatcher) throw new Error("Capability watcher did not start");
     return { config, server, hub, skills, capabilityWatcher, sidecar, tunnelReady, logDirectory, userConfig };
 }
 
@@ -393,10 +393,10 @@ async function startServices(options: StartServicesOptions): Promise<StartedServ
  */
 async function runDaemonProcess(flags: CliFlags): Promise<void> {
     if (typeof process.send !== "function" || !process.connected) {
-        throw new Error("daemon 是内部入口；请运行 codex-mcp start");
+        throw new Error("daemon is an internal entry point; run codex-mcp start");
     }
     const startup = new AbortController();
-    const cancel = () => startup.abort(new Error("已取消守护进程启动"));
+    const cancel = () => startup.abort(new Error("Daemon startup cancelled"));
     // Keep IPC ownership until state is committed. If the starting CLI dies,
     // an unfinished daemon must clean up instead of becoming an orphan.
     process.once("disconnect", cancel);
@@ -420,7 +420,7 @@ async function runDaemonProcess(flags: CliFlags): Promise<void> {
 async function runDaemonServices(flags: CliFlags, signal: AbortSignal, ready: () => void): Promise<void> {
     const userConfig = loadUserConfig();
     if (!flags.local && !userConfig.publicAccess) {
-        throw new Error("daemon 只读取已提交配置；请先在前台运行 `codex-mcp setup`");
+        throw new Error("daemon only reads committed configuration; run `codex-mcp setup` in the foreground first");
     }
 
     if (!flags.local) {
@@ -445,7 +445,7 @@ async function runDaemonServices(flags: CliFlags, signal: AbortSignal, ready: ()
         try {
             if (services) {
                 const errors = await cleanupStartedResources(services.server, services.capabilityWatcher, services.sidecar);
-                if (errors.length) throw new AggregateError(errors, "后台服务清理未完成");
+                if (errors.length) throw new AggregateError(errors, "Background service cleanup incomplete");
             }
             await removeDaemonState();
             writeRuntimeLog("info", "daemon_stopped");
@@ -537,9 +537,9 @@ async function runLogs(flags: CliFlags): Promise<void> {
     const recent = readRecentLogLines(flags.lines);
     if (!recent.text) {
         if (flags.follow) {
-            throw new Error(`还没有运行日志：${recent.path}`);
+            throw new Error(`No runtime logs yet: ${recent.path}`);
         }
-        printWarning(`还没有运行日志：${recent.path}`);
+        printWarning(`No runtime logs yet: ${recent.path}`);
         return;
     }
     process.stdout.write(`${recent.text}\n`);
@@ -550,30 +550,30 @@ async function runLogs(flags: CliFlags): Promise<void> {
 
 /** Print installation/configuration report; --fix only performs whitelisted local repairs. */
 async function printDoctorReport(fix: boolean): Promise<void> {
-    printIntro("codex-mcp 检查");
+    printIntro("codex-mcp checks");
 
     const result = await runDoctorService(fix);
     for (const fixMessage of result.fixes) printSuccess(fixMessage);
     for (const warning of result.warnings) printWarning(warning);
-    if (fix) printInfo("--fix 不会修改 Cloudflare DNS、OAuth 身份、连接密码或项目文件。");
+    if (fix) printInfo("--fix does not modify Cloudflare DNS, OAuth identities, connection passwords, or project files.");
 
     const report = result.report;
     for (const check of report.checks) {
-        printDoctorMessage(check.level, `${check.label}：${check.detail}`);
+        printDoctorMessage(check.level, `${check.label}: ${check.detail}`);
     }
 
     if (report.errors > 0) {
         process.exitCode = 1;
         printError(
-            `发现 ${report.errors} 个需要处理的问题。按上面的提示修复后，再运行一次 codex-mcp doctor。`,
+            `Found ${report.errors} issues that need attention. Follow the instructions above, then run codex-mcp doctor again.`,
         );
     } else if (report.warnings > 0) {
-        printWarning(`可以正常使用。有 ${report.warnings} 个需要留意的提示。`);
+        printWarning(`Ready to use, with ${report.warnings} warnings to review.`);
     } else {
-        printSuccess("安装和配置看起来都正常。");
+        printSuccess("Installation and configuration look healthy.");
     }
-    printInfo("启动 codex-mcp 时还会自动检查公网连接是否真的可用。");
-    printOutro("检查完成");
+    printInfo("Starting codex-mcp also checks that public access is actually available.");
+    printOutro("Checks complete");
 }
 
 function printDoctorMessage(level: DoctorLevel, text: string): void {
@@ -594,7 +594,7 @@ void main(process.argv.slice(2)).catch((error) => {
         closeRuntimeLog();
     } catch (logError) {
         const logDetail = logError instanceof Error ? logError.message : String(logError);
-        printWarning(`文件日志关闭失败：${logDetail}`);
+        printWarning(`Failed to close file log: ${logDetail}`);
     }
     process.exit(1);
 });

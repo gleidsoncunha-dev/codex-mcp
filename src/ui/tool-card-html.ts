@@ -1,7 +1,7 @@
 export function toolCardHtml(toolName?: string): string {
     const bakedTool = JSON.stringify(toolName ?? "");
     return `<!doctype html>
-<html lang="zh-CN">
+<html lang="en-US">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -279,7 +279,7 @@ export function toolCardHtml(toolName?: string): string {
       <button type="button" id="strip" class="strip" aria-expanded="false" aria-controls="drawer">
         <span class="icon" id="statusIcon" aria-hidden="true"></span>
         <span class="tool" id="toolChip" hidden></span>
-        <span class="title" id="title">工具调用中...</span>
+        <span class="title" id="title">Calling tool...</span>
         <span class="chev" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
         </span>
@@ -329,51 +329,51 @@ export function toolCardHtml(toolName?: string): string {
   }
 
   var LABELS = {
-    project_control: "管理会话项目",
-    read: "读取文件",
-    read_image: "读取图片",
-    apply_patch: "应用补丁",
-    exec_command: "执行命令",
-    write_stdin: "终端交互",
-    grep: "搜索内容",
-    glob: "查找文件",
-    ls: "列出目录",
-    summary: "总结本轮",
-    skills_list: "列出 Skills",
-    skill_read: "读取 Skill",
-    code_explore: "探索代码结构",
-    mcp_tools: "发现下游工具",
-    mcp_call: "调用下游工具",
+    project_control: "Manage session project",
+    read: "Read files",
+    read_image: "Read image",
+    apply_patch: "Apply patch",
+    exec_command: "Run command",
+    write_stdin: "Terminal interaction",
+    grep: "Search content",
+    glob: "Find files",
+    ls: "List directory",
+    summary: "Summarize this round",
+    skills_list: "List skills",
+    skill_read: "Read skill",
+    code_explore: "Explore code structure",
+    mcp_tools: "Discover downstream tools",
+    mcp_call: "Call downstream tool",
   };
   var PARAM_LABELS = {
-    path: "路径",
-    purpose: "目的",
-    cmd: "命令",
-    pattern: "模式",
-    url: "网址",
-    uri: "资源 URI",
-    session_id: "会话",
-    chars: "输入",
-    offset: "起始行",
-    limit: "行数",
-    format: "格式",
-    summary: "总结",
-    next: "下一步",
-    done: "完成",
+    path: "Path",
+    purpose: "Purpose",
+    cmd: "Command",
+    pattern: "Pattern",
+    url: "URL",
+    uri: "Resource URI",
+    session_id: "Session",
+    chars: "Input",
+    offset: "Start line",
+    limit: "Line count",
+    format: "Format",
+    summary: "Summary",
+    next: "Next step",
+    done: "Done",
     server: "MCP",
-    tool: "工具",
+    tool: "Tool",
     name: "Skill",
-    prompt: "提示词",
-    query: "查询",
-    intent: "意图",
-    revision: "版本",
-    staged: "暂存区",
-    project_path: "项目",
-    max_depth: "深度",
-    capability: "权限",
-    duration: "授权范围",
-    action: "操作",
-    project_id: "项目 ID"
+    prompt: "Prompt",
+    query: "Query",
+    intent: "Intent",
+    revision: "Version",
+    staged: "Staging area",
+    project_path: "Project",
+    max_depth: "Depth",
+    capability: "Permissions",
+    duration: "Authorization scope",
+    action: "Action",
+    project_id: "Project ID"
   };
   var PARAM_KEYS = {
     project_control: ["purpose", "action", "project_id", "project_path"],
@@ -459,9 +459,9 @@ export function toolCardHtml(toolName?: string): string {
     if (value === undefined || value === null || value === "") return null;
     if (key === "session_id") return "#" + value;
     if (key === "chars") {
-      if (typeof value === "number") return value + " 字符";
+      if (typeof value === "number") return value + " characters";
       if (typeof value === "string") {
-        return value.length > 0 ? value.length + " 字符" : "(空)";
+        return value.length > 0 ? value.length + " characters" : "(empty)";
       }
     }
     if (key === "cmd" && typeof value === "string") return value;
@@ -515,29 +515,29 @@ export function toolCardHtml(toolName?: string): string {
   function summarizeOutcome(toolName, ok, structured, contentText) {
     if (!ok) {
       var errorText = String(contentText || "").trim();
-      return errorText ? clip(errorText, 100) : "调用失败";
+      return errorText ? clip(errorText, 100) : "Call failed";
     }
     var data = structured && typeof structured === "object" ? structured : null;
     if (!data) {
       var text = String(contentText || "").trim();
       return text ? clip(text, 100) : "";
     }
-    if (toolName === "read" && Array.isArray(data.files)) return data.files.length + " 个文件";
-    if (toolName === "apply_patch" && Array.isArray(data.files)) return data.files.length + " 个文件";
+    if (toolName === "read" && Array.isArray(data.files)) return data.files.length + " files";
+    if (toolName === "apply_patch" && Array.isArray(data.files)) return data.files.length + " files";
     if (toolName === "exec_command" || toolName === "write_stdin") {
       var parts = [];
       if (typeof data.session_id === "number") parts.push("#" + data.session_id);
-      if (data.running === true) parts.push("运行中");
-      else if (typeof data.exit_code === "number") parts.push("退出码 " + data.exit_code);
+      if (data.running === true) parts.push("Running");
+      else if (typeof data.exit_code === "number") parts.push("Exit code " + data.exit_code);
       if (parts.length) return parts.join(" · ");
     }
-    if (toolName === "grep" && typeof data.matchCount === "number") return data.matchCount + " 处匹配";
+    if (toolName === "grep" && typeof data.matchCount === "number") return data.matchCount + " matches";
     if (toolName === "glob") {
-      if (typeof data.count === "number") return data.count + " 个文件";
-      if (Array.isArray(data.files)) return data.files.length + " 个文件";
+      if (typeof data.count === "number") return data.count + " files";
+      if (Array.isArray(data.files)) return data.files.length + " files";
     }
-    if (toolName === "ls" && Array.isArray(data.entries)) return data.entries.length + " 项";
-    if (toolName === "summary" && data.fileChanges && typeof data.fileChanges.count === "number") return data.fileChanges.count + " 个变更文件";
+    if (toolName === "ls" && Array.isArray(data.entries)) return data.entries.length + " items";
+    if (toolName === "summary" && data.fileChanges && typeof data.fileChanges.count === "number") return data.fileChanges.count + " changed files";
     var fallback = String(contentText || "").trim();
     return fallback ? clip(fallback, 100) : "";
   }
@@ -699,7 +699,7 @@ export function toolCardHtml(toolName?: string): string {
     if (!card.running) {
       var outcome = card.outcome ? String(card.outcome) : "";
       rows.push(
-        '<div class="row outcome' + (card.ok ? "" : " fail") + '"><dt>结果</dt><dd>' +
+        '<div class="row outcome' + (card.ok ? "" : " fail") + '"><dt>Result</dt><dd>' +
           escapeHtml(outcome || "—") +
           "</dd></div>"
       );
@@ -707,7 +707,7 @@ export function toolCardHtml(toolName?: string): string {
 
     panel.innerHTML = rows.length
       ? '<dl class="rows">' + rows.join("") + "</dl>"
-      : '<div class="empty">暂无参数</div>';
+      : '<div class="empty">No parameters</div>';
   }
 
   function setExpanded(next) {
@@ -735,14 +735,14 @@ export function toolCardHtml(toolName?: string): string {
     if (pending) {
       toolChip.textContent = "";
       toolChip.hidden = true;
-      titleEl.textContent = "工具调用中...";
-      titleEl.title = "工具调用中...";
+      titleEl.textContent = "Calling tool...";
+      titleEl.title = "Calling tool...";
     } else {
       toolChip.textContent = label;
       toolChip.hidden = !label;
       var titleText = hasArgsTitle
         ? card.title
-        : (card.running ? "工具调用中..." : "—");
+        : (card.running ? "Calling tool..." : "—");
       titleEl.textContent = titleText;
       titleEl.title = titleText;
     }
@@ -757,10 +757,10 @@ export function toolCardHtml(toolName?: string): string {
       : iconSvg(card.ok ? "ok" : "fail");
 
     var ariaLabel = pending
-      ? "工具调用中"
-      : [label, titleEl.textContent, card.running ? "进行中" : (card.ok ? "成功" : "失败")]
+      ? "Calling tool"
+      : [label, titleEl.textContent, card.running ? "In progress" : (card.ok ? "Succeeded" : "Failed")]
           .filter(Boolean)
-          .join("，");
+          .join(", ");
     strip.setAttribute("aria-label", ariaLabel);
   }
 

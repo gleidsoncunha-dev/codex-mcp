@@ -61,27 +61,27 @@ function detected(id: string): boolean {
 <template>
     <div>
         <div class="section-heading">
-            <div><div class="inline-actions"><h2>工具与技能</h2><el-tag v-if="dirty" type="warning" size="small" effect="plain">未保存</el-tag></div><p>按需读取本机已有的 Codex、Claude Code 和 Agent Skills 配置。</p></div>
-            <div class="inline-actions"><el-button v-if="dirty" text :disabled="busy" @click="resetDraft">放弃修改</el-button><el-button type="primary" :disabled="!capabilities || !dirty || busy" @click="save">保存设置</el-button></div>
+            <div><div class="inline-actions"><h2>Tools and skills</h2><el-tag v-if="dirty" type="warning" size="small" effect="plain">Unsaved</el-tag></div><p>Read existing local Codex, Claude Code, and Agent Skills settings as needed.</p></div>
+            <div class="inline-actions"><el-button v-if="dirty" text :disabled="busy" @click="resetDraft">Discard changes</el-button><el-button type="primary" :disabled="!capabilities || !dirty || busy" @click="save">Save settings</el-button></div>
         </div>
         <template v-if="capabilities">
             <div class="capability-row">
                 <div class="capability-title">
-                    <div><strong>自动同步</strong><div class="muted small">来源配置变化后自动刷新，不需要重启 Runtime。</div></div>
+                    <div><strong>Automatic sync</strong><div class="muted small">Refresh automatically when source settings change, without restarting Runtime.</div></div>
                     <el-switch :model-value="capabilities.sync === 'watch'" @change="updateSync(Boolean($event))" />
                 </div>
             </div>
             <div v-for="id in ['agents', 'codex', 'claude']" :key="id" class="capability-row">
                 <div class="capability-title">
                     <div>
-                        <div class="inline-actions"><strong>{{ id === 'agents' ? 'Agent Skills' : id === 'codex' ? 'Codex' : 'Claude Code' }}</strong><el-tag v-if="detected(id)" size="small" effect="plain">已检测到</el-tag></div>
-                        <div class="muted small">允许 codex-mcp 读取这个来源中的工具和技能。</div>
+                        <div class="inline-actions"><strong>{{ id === 'agents' ? 'Agent Skills' : id === 'codex' ? 'Codex' : 'Claude Code' }}</strong><el-tag v-if="detected(id)" size="small" effect="plain">Detected</el-tag></div>
+                        <div class="muted small">Allow codex-mcp to read tools and skills from this source.</div>
                     </div>
                     <el-switch :model-value="capabilities.sources[id]?.enabled ?? false" @change="updateSource(id, 'enabled', Boolean($event))" />
                 </div>
                 <div v-if="capabilities.sources[id]?.enabled" class="capability-options">
-                    <el-checkbox v-if="id !== 'agents'" :model-value="capabilities.sources[id]?.mcp ?? false" @change="updateSource(id, 'mcp', Boolean($event))">读取 MCP 配置</el-checkbox>
-                    <el-checkbox :model-value="capabilities.sources[id]?.skills ?? false" @change="updateSource(id, 'skills', Boolean($event))">读取技能</el-checkbox>
+                    <el-checkbox v-if="id !== 'agents'" :model-value="capabilities.sources[id]?.mcp ?? false" @change="updateSource(id, 'mcp', Boolean($event))">Read MCP settings</el-checkbox>
+                    <el-checkbox :model-value="capabilities.sources[id]?.skills ?? false" @change="updateSource(id, 'skills', Boolean($event))">Read skills</el-checkbox>
                 </div>
             </div>
         </template>

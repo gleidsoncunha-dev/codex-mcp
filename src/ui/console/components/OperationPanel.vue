@@ -8,23 +8,23 @@ const emit = defineEmits<{ cancel: [id: string] }>();
 
 const presentation = computed(() => {
     const state = props.operation?.state;
-    if (state === "succeeded") return { type: "success" as const, label: "已完成", icon: CircleCheck };
-    if (state === "cancelled") return { type: "warning" as const, label: "已取消", icon: WarningFilled };
-    if (state === "failed") return { type: "danger" as const, label: "未完成", icon: CircleClose };
-    return { type: "info" as const, label: "正在处理", icon: Loading };
+    if (state === "succeeded") return { type: "success" as const, label: "Completed", icon: CircleCheck };
+    if (state === "cancelled") return { type: "warning" as const, label: "Cancelled", icon: WarningFilled };
+    if (state === "failed") return { type: "danger" as const, label: "Incomplete", icon: CircleClose };
+    return { type: "info" as const, label: "Processing", icon: Loading };
 });
 
 function friendlyPhase(message: string): string {
     const exact: Record<string, string> = {
-        "准备中": "正在准备",
-        "运行诊断": "正在检查服务",
-        "执行安全本机修复": "正在修复常见问题",
-        "验证公网连接": "正在检查公网连接",
-        "打开 Cloudflare 登录": "正在打开 Cloudflare 登录",
-        "读取 Cloudflare 登录": "正在读取 Cloudflare 账户",
-        "Cloudflare 域名已读取": "可用域名已读取",
-        "正在取消": "正在取消",
-        "完成": "操作已完成",
+        "Preparing": "Preparing operation",
+        "Run diagnostics": "Checking service",
+        "Run safe local repairs": "Fixing common issues",
+        "Verify public connection": "Checking public connection",
+        "Open Cloudflare login": "Opening Cloudflare login",
+        "Read Cloudflare login": "Reading Cloudflare account",
+        "Cloudflare domains loaded": "Available domains loaded",
+        "Cancelling": "Cancelling",
+        "Done": "Operation complete",
     };
     return exact[message] ?? message;
 }
@@ -44,7 +44,7 @@ function friendlyPhase(message: string): string {
                 </div>
                 <el-alert v-if="operation.error" class="operation-panel" type="error" :closable="false" :title="friendlyError(operation.error)" />
             </div>
-            <el-button v-if="operation.state === 'running'" text @click="emit('cancel', operation.id)">取消</el-button>
+            <el-button v-if="operation.state === 'running'" text @click="emit('cancel', operation.id)">Cancel</el-button>
         </div>
     </el-card>
 </template>

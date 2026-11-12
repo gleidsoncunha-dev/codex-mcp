@@ -26,12 +26,12 @@ export function tunnelReadinessTimeoutMessage(
     logText: string,
     logPath: string,
 ): string {
-    const prefix = `公网连接在 ${Math.round(timeoutMs / 1000)} 秒内没有准备好。`;
+    const prefix = `Public connection was not ready within ${Math.round(timeoutMs / 1000)} seconds.`;
     const ipv6Tcp7844Timeout = /\[[0-9a-f:]+\]:7844[^\n]*(?:i\/o timeout|timed out|timeout)/i.test(
         logText,
     );
     if (ipv6Tcp7844Timeout) {
-        return `${prefix} Cloudflare 的 IPv6 连接超时。当前版本已经强制使用 IPv4；请确认网络允许访问 TCP 7844。日志：${logPath}`;
+        return `${prefix} Cloudflare IPv6 connection timed out. This version forces IPv4; check that the network allows TCP 7844. Log: ${logPath}`;
     }
 
     const tcp7844Failure =
@@ -40,10 +40,10 @@ export function tunnelReadinessTimeoutMessage(
             logText,
         );
     if (tcp7844Failure) {
-        return `${prefix} Cloudflare 已回退到 HTTP/2，但 TCP 7844 仍不可达。请检查防火墙或网络限制；自动模式也会优先尝试 QUIC/UDP 7844。日志：${logPath}`;
+        return `${prefix} Cloudflare fell back to HTTP/2, but TCP 7844 is still unreachable. Check firewall or network restrictions; automatic mode also tries QUIC/UDP 7844 first. Log: ${logPath}`;
     }
 
-    return `${prefix} 请检查网络是否允许访问 Cloudflare UDP 或 TCP 7844。日志：${logPath}`;
+    return `${prefix} Check that the network allows Cloudflare UDP or TCP 7844. Log: ${logPath}`;
 }
 
 export interface TunnelSidecarOptions {
@@ -121,7 +121,7 @@ export class CloudflaredSidecar {
 
     private async startOnce(): Promise<TunnelReadyInfo> {
         if (this.child) {
-            throw new Error("Cloudflare Tunnel 已经在运行");
+            throw new Error("Cloudflare Tunnel is already running");
         }
         this.emitState("starting", false);
 
@@ -163,7 +163,7 @@ export class CloudflaredSidecar {
         child.on("error", (error) => {
             this.writeLog(`spawn error: ${error.message}\n`);
             this.failReady(
-                new Error(`无法启动 cloudflared：${error.message}`),
+                new Error(`Cannot start cloudflared: ${error.message}`),
             );
         });
         child.on("close", (code) => {
@@ -174,11 +174,11 @@ export class CloudflaredSidecar {
             if (!this.connectorReady) {
                 this.failReady(
                     new Error(
-                        `cloudflared 在公网连接准备好之前退出了（代码 ${code}）。日志：${this.logPath}`,
+                        `cloudflared exited before the public connection was ready (code ${code}). Log: ${this.logPath}`,
                     ),
                 );
             } else if (!this.stopping) {
-                this.scheduleRestart(`cloudflared 退出（代码 ${code ?? "null"}）`);
+                this.scheduleRestart(`cloudflared exited (code ${code ?? "null"})`);
             }
         });
 
@@ -301,7 +301,7 @@ export class CloudflaredSidecar {
         }
         this.restartCount += 1;
         const delayMs = Math.min(30_000, 1_000 * 2 ** (this.restartCount - 1));
-        this.emitState("degraded", false, `${detail}，${delayMs}ms 后尝试恢复`);
+        this.emitState("degraded", false, `${detail}; retrying in ${delayMs}ms`);
         this.restartTimer = setTimeout(() => {
             this.restartTimer = undefined;
             if (this.stopping) return;

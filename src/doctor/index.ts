@@ -40,8 +40,8 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
         level: nodeMajor >= 22 ? "ok" : "error",
         detail:
             nodeMajor >= 22
-                ? `版本 ${process.versions.node}`
-                : `当前是 ${process.versions.node}，需要 22 或更高版本`,
+                ? `Version ${process.versions.node}`
+                : `Current version is ${process.versions.node}; Node 22 or later is required`,
     });
 
     checks.push(await checkCommand("Git", "git", ["--version"], false));
@@ -51,15 +51,15 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
     try {
         userConfig = loadUserConfig();
         checks.push({
-            label: "配置文件",
+            label: "Configuration file",
             level: existsSync(getUserConfigPath()) ? "ok" : "warn",
             detail: existsSync(getUserConfigPath())
                 ? getUserConfigPath()
-                : "还没有配置，运行 `codex-mcp setup` 即可",
+                : "Not configured yet. Run `codex-mcp setup`",
         });
     } catch (error) {
         checks.push({
-            label: "配置文件",
+            label: "Configuration file",
             level: "error",
             detail: readableError(error),
         });
@@ -67,9 +67,9 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
 
     const capabilityConfig = resolveCapabilitiesConfig(userConfig?.capabilities);
     checks.push({
-        label: "外部能力",
+        label: "External capabilities",
         level: "ok",
-        detail: `${describeEnabledCapabilitySources(capabilityConfig)} · ${capabilityConfig.sync === "watch" ? "自动同步" : "仅启动读取"}`,
+        detail: `${describeEnabledCapabilitySources(capabilityConfig)} · ${capabilityConfig.sync === "watch" ? "Automatic sync" : "Read at startup"}`,
     });
     if (capabilityConfig.sources.codex.mcp) {
         checks.push(await checkCommand("Codex", "codex", ["--version"], false));
@@ -80,17 +80,17 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
     try {
         const configured = await hasAdminPassword();
         checks.push({
-            label: "连接密码",
+            label: "Connection password",
             level: configured ? "ok" : publicModeExpected ? "error" : "warn",
             detail: configured
-                ? "已设置"
+                ? "Set"
                 : publicModeExpected
-                  ? "未设置；公网连接需要连接密码，请在 Web Console 的“连接”页面设置，或运行 `codex-mcp auth`"
-                  : "未设置；仅本机模式不需要，连接 ChatGPT 时再设置即可",
+                  ? "Not set; public access requires a connection password. Set it on the Connection page in Web Console or run `codex-mcp auth`"
+                  : "Not set; local-only mode does not require it. Set it when connecting ChatGPT",
         });
     } catch (error) {
         checks.push({
-            label: "连接密码",
+            label: "Connection password",
             level: "error",
             detail: readableError(error),
         });
@@ -98,17 +98,17 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
 
     if (publicAccess) {
         checks.push({
-            label: "公网地址",
+            label: "Public address",
             level: "ok",
             detail: `https://${publicAccess.domain}/mcp`,
         });
     } else {
         checks.push({
-            label: "公网地址",
+            label: "Public address",
             level: userConfig?.runtime?.mode === "public" ? "error" : "warn",
             detail: userConfig?.runtime?.mode === "public"
-                ? "未设置；当前默认启动是公网模式，请在 Web Console 的“连接”页面配置，或运行 `codex-mcp setup`"
-                : "未设置；当前仍可仅本机使用，需要连接 ChatGPT 时再配置即可",
+                ? "Not set; public mode is the startup default. Configure it on the Connection page in Web Console or run `codex-mcp setup`"
+                : "Not set; local-only mode is available. Configure this when connecting ChatGPT",
         });
     }
 
@@ -116,7 +116,7 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
         checks.push({
             label: "Cloudflare Tunnel",
             level: "warn",
-            detail: "已关闭。请确认你自己准备了可用的 HTTPS 公网入口",
+            detail: "Disabled. Make sure you have a working external HTTPS endpoint",
         });
     } else if (publicAccess?.kind === "cloudflare") {
         const cloudflaredBin = await suggestCloudflaredBin(publicAccess.cloudflaredBin);
@@ -124,7 +124,7 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
             checks.push({
                 label: "cloudflared",
                 level: "error",
-                detail: "没有找到 cloudflared。重新运行 `codex-mcp setup` 可以继续配置",
+                detail: "cloudflared not found. Run `codex-mcp setup` again to continue",
             });
         } else {
             try {
@@ -142,11 +142,11 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
         const managedLoginPath = getCloudflareOriginCertPath();
         const managedLogin = hasManagedCloudflareLogin();
         checks.push({
-            label: "Cloudflare 登录",
+            label: "Cloudflare login",
             level: managedLogin ? "ok" : "warn",
             detail: managedLogin
-                ? `codex-mcp 私有登录：${managedLoginPath}`
-                : "没有可用的 codex-mcp 私有登录；Tunnel 仍可运行，但修改或远端诊断时需要重新登录",
+                ? `Private codex-mcp login: ${managedLoginPath}`
+                : "No usable private codex-mcp login. Tunnel can still run, but changes or remote diagnostics require logging in again",
         });
 
         const credentialsPath = getCredentialsPath(publicAccess.tunnelId);
@@ -157,29 +157,29 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
                 const mismatch = identity.tunnelId !== publicAccess.tunnelId ||
                     identity.accountId !== publicAccess.accountId;
                 checks.push({
-                    label: "Tunnel 凭据",
+                    label: "Tunnel credentials",
                     level: mismatch ? "error" : "ok",
                     detail: mismatch
-                        ? "credential 的 TunnelID / AccountTag 与已提交配置不一致"
-                        : `${credentialsPath} · Tunnel / 账号一致`,
+                        ? "Credential TunnelID / AccountTag does not match the committed configuration"
+                        : `${credentialsPath} · Tunnel / account match`,
                 });
             } catch (error) {
-                checks.push({ label: "Tunnel 凭据", level: "error", detail: readableError(error) });
+                checks.push({ label: "Tunnel credentials", level: "error", detail: readableError(error) });
             }
         } else {
             checks.push({
-                label: "Tunnel 凭据",
+                label: "Tunnel credentials",
                 level: "error",
-                detail: `缺少本机凭据：${credentialsPath}`,
+                detail: `Missing local credentials: ${credentialsPath}`,
             });
         }
 
         const runtimeConfigPath = resolveCloudflaredRuntimeConfigPath(publicAccess);
         try {
             await loadCommittedTunnelSetup(userConfig);
-            checks.push({ label: "Tunnel 配置一致性", level: "ok", detail: runtimeConfigPath });
+            checks.push({ label: "Tunnel configuration consistency", level: "ok", detail: runtimeConfigPath });
         } catch (error) {
-            checks.push({ label: "Tunnel 配置一致性", level: "error", detail: readableError(error) });
+            checks.push({ label: "Tunnel configuration consistency", level: "error", detail: readableError(error) });
         }
 
         if (managedLogin) {
@@ -187,15 +187,15 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
                 const login = readManagedCloudflareOriginToken();
                 if (login.accountID !== publicAccess.accountId) {
                     checks.push({
-                        label: "Cloudflare 账号一致性",
+                        label: "Cloudflare account consistency",
                         level: "error",
-                        detail: "当前私有登录账号与已提交 Tunnel 账号不同；运行 setup 重新选择账号",
+                        detail: "Private login account differs from the committed Tunnel account; run setup to choose an account again",
                     });
                 } else {
-                    checks.push({ label: "Cloudflare 账号一致性", level: "ok", detail: publicAccess.accountId });
+                    checks.push({ label: "Cloudflare account consistency", level: "ok", detail: publicAccess.accountId });
                 }
             } catch (error) {
-                checks.push({ label: "Cloudflare 账号一致性", level: "error", detail: readableError(error) });
+                checks.push({ label: "Cloudflare account consistency", level: "error", detail: readableError(error) });
             }
             try {
                 const [tunnel, dns] = await Promise.all([
@@ -203,32 +203,32 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
                     snapshotCloudflareDns(publicAccess.zoneId, publicAccess.domain),
                 ]);
                 checks.push({
-                    label: "Cloudflare Tunnel 远端状态",
+                    label: "Remote Cloudflare Tunnel status",
                     level: tunnel.exists ? (tunnel.status === "down" ? "warn" : "ok") : "error",
                     detail: tunnel.exists
-                        ? `${tunnel.status ?? "状态未知"} · ${tunnel.connectorCount ?? 0} 个 connector`
-                        : "远端 Tunnel 不存在",
+                        ? `${tunnel.status ?? "Unknown status"} · ${tunnel.connectorCount ?? 0} items connector`
+                        : "Remote Tunnel does not exist",
                 });
                 const dnsMatches = dnsSnapshotPointsToTunnel(dns, publicAccess.tunnelId);
                 checks.push({
-                    label: "Cloudflare DNS 一致性",
+                    label: "Cloudflare DNS consistency",
                     level: dnsMatches ? "ok" : "error",
                     detail: dnsMatches
                         ? `${publicAccess.domain} → ${publicAccess.tunnelId}.cfargotunnel.com`
-                        : `${publicAccess.domain} 没有唯一指向已提交 Tunnel`,
+                        : `${publicAccess.domain} does not point exclusively to the committed Tunnel`,
                 });
             } catch (error) {
                 checks.push({
-                    label: "Cloudflare 远端诊断",
+                    label: "Remote Cloudflare diagnostics",
                     level: "warn",
-                    detail: `只读 API 检查失败：${readableError(error)}`,
+                    detail: `Read-only API check failed: ${readableError(error)}`,
                 });
             }
         } else {
             checks.push({
-                label: "Cloudflare 远端诊断",
+                label: "Remote Cloudflare diagnostics",
                 level: "warn",
-                detail: "没有可用的 codex-mcp 私有登录；运行 setup 重新登录后可启用远端一致性检查",
+                detail: "No usable private codex-mcp login; run setup and log in again to enable remote consistency checks",
             });
         }
     }
@@ -237,20 +237,20 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
     if (daemon) {
         const status = await daemon.client.status();
         checks.push({
-            label: "守护进程",
+            label: "Daemon",
             level: "ok",
-            detail: `pid ${status.pid} · ${status.mode === "local" ? "本机" : "公网"} · ${status.version}`,
+            detail: `pid ${status.pid} · ${status.mode === "local" ? "Local" : "Public"} · ${status.version}`,
         });
         if (publicAccess && status.mode === "public") {
             const expected = `https://${publicAccess.domain}/mcp`;
             if (status.publicMcpUrl !== expected) {
                 checks.push({
-                    label: "Daemon 配置一致性",
+                    label: "Daemon configuration consistency",
                     level: "error",
-                    detail: `daemon 使用 ${status.publicMcpUrl ?? "无公网地址"}，已提交配置是 ${expected}；请重启`,
+                    detail: `daemon uses ${status.publicMcpUrl ?? "no public address"}, but the committed configuration is ${expected}; restart it`,
                 });
             } else {
-                checks.push({ label: "Daemon 配置一致性", level: "ok", detail: expected });
+                checks.push({ label: "Daemon configuration consistency", level: "ok", detail: expected });
             }
             try {
                 await verifyRunningPublicRoute(
@@ -258,15 +258,15 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
                     userConfig?.host ?? "127.0.0.1",
                     userConfig?.port ?? 3920,
                 );
-                checks.push({ label: "公网实例一致性", level: "ok", detail: "公网与本机返回相同 instance" });
+                checks.push({ label: "Public instance consistency", level: "ok", detail: "Public and local endpoints return the same instance" });
             } catch (error) {
-                checks.push({ label: "公网实例一致性", level: "error", detail: readableError(error) });
+                checks.push({ label: "Public instance consistency", level: "error", detail: readableError(error) });
             }
         } else if (publicAccess) {
             checks.push({
-                label: "Daemon 配置一致性",
+                label: "Daemon configuration consistency",
                 level: "warn",
-                detail: "daemon 当前以本机模式运行；已提交公网配置会在下次公网启动时使用",
+                detail: "daemon is running in local mode; committed public configuration will be used at the next public startup",
             });
         }
         if (
@@ -275,7 +275,7 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
             status.runtimeIntent.noTunnel === false
         ) {
             checks.push({
-                label: "Tunnel 运行状态",
+                label: "Tunnel runtime status",
                 level: status.tunnel.state === "connected" ? "ok" : "error",
                 detail: `${status.tunnel.state}${status.tunnel.detail ? ` · ${status.tunnel.detail}` : ""}`,
             });
@@ -285,13 +285,13 @@ export async function runDoctorChecks(): Promise<DoctorReport> {
             status.runtimeIntent.noTunnel === true
         ) {
             checks.push({
-                label: "Tunnel 运行状态",
+                label: "Tunnel runtime status",
                 level: "warn",
-                detail: "daemon 使用 --no-tunnel，managed sidecar 未启动",
+                detail: "daemon uses --no-tunnel; managed sidecar is not started",
             });
         }
     } else {
-        checks.push({ label: "守护进程", level: "warn", detail: "未运行；项目注册和公网配置仍保留" });
+        checks.push({ label: "Daemon", level: "warn", detail: "Stopped; project registrations and public configuration are preserved" });
     }
 
     const errors = checks.filter((item) => item.level === "error").length;
@@ -303,9 +303,9 @@ async function checkRipgrep(): Promise<DoctorCheck> {
     const binary = await findRipgrep();
     if (!binary) {
         return {
-            label: "文件搜索",
+            label: "File search",
             level: "error",
-            detail: "文件搜索组件缺失；运行 `codex-mcp doctor --fix` 可以自动恢复",
+            detail: "File search tool missing; run `codex-mcp doctor --fix` to restore it automatically",
         };
     }
     try {
@@ -320,18 +320,18 @@ async function checkRipgrep(): Promise<DoctorCheck> {
             .map((line) => line.trim())
             .find(Boolean);
         return {
-            label: "文件搜索",
+            label: "File search",
             level: result.exitCode === 0 ? "ok" : "error",
             detail:
                 result.exitCode === 0
-                    ? firstLine ?? "已安装"
-                    : "文件搜索组件存在，但无法正常启动",
+                    ? firstLine ?? "Installed"
+                    : "File search tool exists but cannot start correctly",
         };
     } catch {
         return {
-            label: "文件搜索",
+            label: "File search",
             level: "error",
-            detail: "文件搜索组件存在，但无法正常启动",
+            detail: "File search tool exists but cannot start correctly",
         };
     }
 }
@@ -353,7 +353,7 @@ async function checkCommand(
             return {
                 label,
                 level: required ? "error" : "warn",
-                detail: `${command} 可以启动，但返回了错误`,
+                detail: `${command} starts but returned an error`,
             };
         }
         const firstLine = `${result.stdout}\n${result.stderr}`
@@ -363,7 +363,7 @@ async function checkCommand(
         return {
             label,
             level: "ok",
-            detail: firstLine ?? "已安装",
+            detail: firstLine ?? "Installed",
         };
     } catch {
         return {
@@ -371,10 +371,10 @@ async function checkCommand(
             level: required ? "error" : "warn",
             detail:
                 label === "Codex"
-                    ? "没有找到；核心功能仍可用，但不会自动继承 Codex 的 MCP"
+                    ? "Not found; core features remain available, but Codex MCP configuration will not be inherited automatically"
                     : label === "Git"
-                      ? "没有找到；Git 状态、历史和差异相关功能不可用"
-                      : "没有找到",
+                      ? "Not found; Git status, history, and diff features are unavailable"
+                      : "Not found",
         };
     }
 }

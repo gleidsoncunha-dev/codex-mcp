@@ -1,78 +1,78 @@
-# Setup / Tunnel 生命周期设计
+# Setup / Tunnel Lifecycle Design
 
-## 目标
+## Goals
 
-让公网配置、Cloudflare 远端资源和 daemon 运行态拥有清晰的唯一 owner。配置命令负责交互和变更，检查命令保持只读，daemon 只消费已经提交的配置。
+Give public configuration, Cloudflare resources, and daemon runtime state clear, unique owners. Configuration commands own interaction and mutations; checks remain read-only; daemon consumes only committed configuration.
 
-保留单 daemon、多项目注册模型。公网 route 验证采用单一 30 秒预算，支持中断取消；命令、事务补偿和安全边界均有回归测试。
+Retain the single-daemon, multiple-project model. Public route verification has one 30-second budget and supports cancellation. Commands, compensation, and security boundaries have regression coverage.
 
-## 状态边界
+## State boundaries
 
-公网配置只有两种已提交状态：
+Public access has only two committed states:
 
-- `external`：用户提供 HTTPS 入口，仅保存 hostname。
-- `cloudflare`：codex-mcp 管理 locally-managed Tunnel，保存 hostname、Tunnel ID/name、cloudflared 路径和账号/zone identity。
+- `external`: user-provided HTTPS endpoint; persist only the hostname.
+- `cloudflare`: locally managed Tunnel owned by codex-mcp; persist hostname, Tunnel ID/name, cloudflared path, and account/zone identity.
 
-运行意图与公网配置分开：本机或公网、是否启动 managed sidecar、是否镜像 Tunnel 日志。daemon state 必须保存完整运行意图，使 restart 和 setup 后恢复不会改变语义。
+Runtime intent is separate: local/public mode, managed sidecar startup, and Tunnel log mirroring. Daemon state must retain complete intent so restart and restoration after setup preserve semantics.
 
-Cloudflare 状态分为：
+Cloudflare state consists of separate lifecycles:
 
-- account certificate：账号级管理凭据，登录成功是独立 durable checkpoint。
-- Tunnel credential：只允许运行特定 Tunnel，与远端 Tunnel 一起管理。
-- runtime YAML：由已提交配置生成的运行制品。
-- Tunnel、DNS record、connector：三个独立的远端/运行时生命周期。
+- Account certificate: account-level management credentials; successful login is its own durable checkpoint.
+- Tunnel credentials: permission to run one Tunnel, managed together with the remote Tunnel.
+- Runtime YAML: artifact derived from committed configuration.
+- Tunnel, DNS record, and connector: independent remote/runtime lifecycles.
 
-## 命令职责
+## Command responsibilities
 
-| 入口 | 职责 |
+| Entry | Responsibility |
 |---|---|
-| `setup` → 检查当前配置 | 只读检查 committed config、运行态和公网实例 |
-| `setup` → 修改公网连接 | 唯一公网 mutation 入口 |
-| `setup` | 唯一公网配置和变更入口 |
-| daemon start | 只读取 committed config；不 prompt、不登录、不改 DNS |
-| `status` | 展示 daemon 与 sidecar observed state，并比较公网/本机 instance |
-| `doctor` | 默认只读 reconcile config、YAML、credential、Tunnel、DNS、connector；`--fix` 仅执行白名单本机修复（目录、stale daemon state），不修改 DNS/OAuth/password/projects |
+| `setup` → Check current configuration | Read-only inspection of committed config, runtime, and public instance |
+| `setup` → Change public access | The public mutation entry point |
+| `setup` | Public access configuration and changes |
+| daemon start | Read committed config only; no prompts, login, or DNS changes |
+| `status` | Present observed daemon/sidecar state and compare public/local instances |
+| `doctor` | Read-only reconciliation of config, YAML, credentials, Tunnel, DNS, and connector by default; `--fix` only allowlisted local repairs (directories, stale daemon state), never DNS/OAuth/password/projects |
 
-## Managed Tunnel 配置顺序
+## Managed Tunnel setup order
 
 ```text
-取得 lifecycle lock
-→ 识别端口 owner；未知占用则在任何 Cloudflare mutation 前失败
-→ 保持已知 daemon 在线
-→ 登录 checkpoint / 账号和 zone discovery
-→ 生成变更计划
-→ 创建或复用 candidate Tunnel 与 credential
-→ 写 candidate YAML
-→ candidate 准备完成后短暂停止已知 daemon
-→ 启动本机随机 probe origin
-→ 启动 candidate connector 并等待 ready
-→ 通过 Cloudflare API snapshot 旧 DNS record
-→ 切换 DNS 到 candidate Tunnel
-→ 在单一 30 秒预算内验证公网随机 probe；Ctrl+C 可立即取消并进入补偿
-→ 原子提交本地配置与 runtime YAML revision
-→ 恢复此前 daemon 完整运行意图
-→ 比较 local/public instance
+Acquire lifecycle lock
+→ Identify port owner; fail on unknown use before any Cloudflare mutation
+→ Keep the known daemon online
+→ Login checkpoint / account and zone discovery
+→ Build change plan
+→ Create or reuse candidate Tunnel and credentials
+→ Write candidate YAML
+→ Briefly stop the known daemon only once the candidate is prepared
+→ Start local random probe origin
+→ Start candidate connector and wait for readiness
+→ Snapshot previous DNS record through Cloudflare API
+→ Switch DNS to candidate Tunnel
+→ Verify public random probe within one 30-second budget; Ctrl+C immediately requests cancellation and compensation
+→ Atomically commit local config and runtime YAML revision
+→ Restore complete previous daemon intent
+→ Compare local/public instance
 ```
 
-DNS 只能在 candidate connector ready 后切换。交互式登录、zone/hostname 选择和 candidate 准备不能提前中断一个正常 daemon；停机窗口只覆盖实际 origin/connector/DNS 验证与 commit。配置 mutation 不允许复用“端口占用时比较旧 daemon”的检查分支。
+Switch DNS only after the candidate connector is ready. Interactive login, zone/hostname selection, and candidate preparation must not interrupt a healthy daemon early. Downtime covers only origin/connector/DNS verification and commit. Configuration mutations must not reuse the read-only branch that compares an old daemon when the port is occupied.
 
-## 失败与补偿
+## Failure and compensation
 
-- 登录成功不因后续 route 失败删除。
-- DNS 变更前保存完整 record；失败后恢复旧 record，原来不存在则删除本次记录。
-- 只自动删除本次 session 新建且尚未投入使用的 Tunnel。
-- committed config 在最终验证成功前保持旧值。
-- 补偿失败必须报告 phase、已完成的远端变更和精确恢复动作，不能声称事务回滚成功。
-- DNS mutation 阶段收到 Ctrl+C 时先标记取消，让当前远端请求收敛并进入同一补偿路径，而不是直接终止进程。
+- Successful login is not deleted when a later route step fails.
+- Save complete DNS records before changes; restore them on failure, or remove the new record if none existed previously.
+- Automatically delete only Tunnels newly created in this session and not yet in use.
+- Keep the previous committed config until final verification succeeds.
+- Compensation failures must report the phase, completed remote changes, and exact recovery actions; never claim successful rollback.
+- Ctrl+C during DNS mutation first marks cancellation, lets the current remote request settle, and enters the same compensation path instead of terminating immediately.
 
-## 持久化
+## Persistence
 
-配置和运行制品使用 private temp file、`0600` 和 rename。YAML 是派生 revision，先完整写入，再由一次原子 config commit 指向它；旧 revision 在成功切换后清理。
+Use private temporary files, `0600`, and rename for config and runtime artifacts. YAML is a derived revision: write it completely before a single atomic config commit points to it. Clean the previous revision after successful switching.
 
-账号切换在 session-specific 临时 HOME 中完成，新 cert 解析并确认账号后才替换旧 cert。
+Account switching uses a session-specific temporary HOME. Replace the old certificate only after parsing the new one and confirming its account.
 
-## 运行态
+## Runtime
 
-Sidecar 状态为 `off | starting | connected | degraded | exited`。ready 后退出必须传播到 daemon status；daemon 保持本机 control plane 可用，并对意外退出执行有上限的退避重启。连接固定使用 IPv4 edge workaround，但不固定传输协议，让 cloudflared 的 `auto` 模式自行在 QUIC 和 HTTP/2 间选择/回退。
+Sidecar states: `off | starting | connected | degraded | exited`. Exits after readiness must propagate into daemon status. Daemon keeps its local control plane available and uses bounded backoff restarts for unexpected exits. Connections force IPv4 as an edge workaround without pinning transport: cloudflared `auto` chooses/falls back between QUIC and HTTP/2.
 
-正式 public server 启动后，无论 managed Tunnel、自定义 HTTPS 还是 `--no-tunnel`，都使用同一个随机 end-to-end probe 验证公网 hostname 到达当前实例。
+After starting the public server, managed Tunnel, custom HTTPS, and `--no-tunnel` all use the same random end-to-end probe to prove that the public hostname reaches the current instance.

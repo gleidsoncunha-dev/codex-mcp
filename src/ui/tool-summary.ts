@@ -4,10 +4,10 @@ export interface UiParamRow { label: string; value: string; }
 export interface ToolCallSummary { title: string; params: UiParamRow[]; }
 
 const LABELS: Record<string, string> = {
-    purpose: "目的", action: "操作", project_id: "项目 ID", project_path: "项目",
-    path: "路径", paths: "文件", pattern: "模式", cmd: "命令", workdir: "目录",
-    session_id: "会话", chars: "输入", name: "Skill", server: "MCP", tool: "工具",
-    title: "标题", summary: "总结",
+    purpose: "Purpose", action: "Action", project_id: "Project ID", project_path: "Project",
+    path: "Path", paths: "Files", pattern: "Pattern", cmd: "Command", workdir: "Directory",
+    session_id: "Session", chars: "Input", name: "Skill", server: "MCP", tool: "Tool",
+    title: "Title", summary: "Summary",
 };
 
 const KEYS: Record<string, string[]> = {
@@ -42,24 +42,24 @@ export function summarizeOutcome(
     structured?: Record<string, unknown> | null,
     contentText?: string,
 ): string | undefined {
-    if (!ok) return clipLine(contentText || "调用失败", 100);
+    if (!ok) return clipLine(contentText || "Call failed", 100);
     const data = structured ?? {};
-    if (toolName === "read" && Array.isArray(data.files)) return `${data.files.length} 个文件`;
-    if (toolName === "apply_patch" && Array.isArray(data.files)) return `${data.files.length} 个文件`;
-    if (toolName === "grep" && typeof data.matchCount === "number") return `${data.matchCount} 处匹配`;
-    if ((toolName === "glob" || toolName === "ls") && typeof data.count === "number") return `${data.count} 项`;
-    if (toolName === "code_explore" && typeof data.fileCount === "number") return `${data.fileCount} 个文件`;
+    if (toolName === "read" && Array.isArray(data.files)) return `${data.files.length} files`;
+    if (toolName === "apply_patch" && Array.isArray(data.files)) return `${data.files.length} files`;
+    if (toolName === "grep" && typeof data.matchCount === "number") return `${data.matchCount} matches`;
+    if ((toolName === "glob" || toolName === "ls") && typeof data.count === "number") return `${data.count} items`;
+    if (toolName === "code_explore" && typeof data.fileCount === "number") return `${data.fileCount} files`;
     if (toolName === "exec_command" || toolName === "write_stdin") {
         const parts: string[] = [];
         if (typeof data.session_id === "number") parts.push(`#${data.session_id}`);
-        if (data.running === true) parts.push("运行中");
-        else if (typeof data.exit_code === "number") parts.push(`退出码 ${data.exit_code}`);
+        if (data.running === true) parts.push("Running");
+        else if (typeof data.exit_code === "number") parts.push(`Exit code ${data.exit_code}`);
         if (parts.length) return parts.join(" · ");
     }
-    if (toolName === "skills_list" && typeof data.count === "number") return `${data.count} 个 Skill`;
+    if (toolName === "skills_list" && typeof data.count === "number") return `${data.count} skills`;
     if (toolName === "summary" && data.fileChanges && typeof data.fileChanges === "object") {
         const count = (data.fileChanges as Record<string, unknown>).count;
-        if (typeof count === "number") return `${count} 个变更文件`;
+        if (typeof count === "number") return `${count} changed files`;
     }
     const text = (contentText || "").trim();
     return text ? clipLine(text, 100) : undefined;
@@ -68,8 +68,8 @@ export function summarizeOutcome(
 function formatValue(key: string, value: unknown): string | null {
     if (value === undefined || value === null || value === "") return null;
     if (key === "session_id") return `#${value}`;
-    if (key === "chars" && typeof value === "string") return `${value.length} 字符`;
-    if (Array.isArray(value)) return `${value.length} 项`;
+    if (key === "chars" && typeof value === "string") return `${value.length} characters`;
+    if (Array.isArray(value)) return `${value.length} items`;
     if (typeof value === "string") return clipLine(value, key === "cmd" ? 140 : 96);
     if (typeof value === "number" || typeof value === "boolean") return String(value);
     return null;
@@ -80,5 +80,5 @@ function buildTitle(toolName: string, input: Record<string, unknown>, params: Ui
     if (toolName === "mcp_call") return clipLine(`${input.server ?? ""}/${input.tool ?? ""}`, 80);
     if (toolName === "write_stdin") return input.session_id == null ? "—" : `#${input.session_id}`;
     if (typeof input.path === "string") return clipLine(input.path, 80);
-    return params.find((item) => item.label !== "目的")?.value ?? params[0]?.value ?? "—";
+    return params.find((item) => item.label !== "Purpose")?.value ?? params[0]?.value ?? "—";
 }

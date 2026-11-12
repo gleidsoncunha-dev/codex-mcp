@@ -24,7 +24,7 @@ success() {
 }
 
 if [ ! -e "$INSTALL_ROOT" ] && [ ! -e "$MANAGED_BIN" ]; then
-  info "codex-mcp 程序已经不在这台电脑上了。"
+  info "codex-mcp is no longer installed on this computer."
   exit 0
 fi
 
@@ -44,7 +44,7 @@ remove_path_line "${HOME}/.bashrc"
 remove_path_line "${HOME}/.bash_profile"
 remove_path_line "${HOME}/.profile"
 
-success "codex-mcp 程序已删除。"
+success "codex-mcp application removed."
 printf '%s\n' ""
-info "你的配置、连接密码和 Tunnel 信息仍保留在：${HOME}/.codex-mcp"
-info "以后重新安装 codex-mcp 时可以继续使用这些配置。"
+info "Your configuration, connection password, and Tunnel settings are preserved in: ${HOME}/.codex-mcp"
+info "These settings can be reused when you reinstall codex-mcp."

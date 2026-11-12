@@ -38,7 +38,7 @@ export class OperationManager {
             id,
             kind,
             state: "running",
-            phase: "准备中",
+            phase: "Preparing",
             messages: [],
             startedAt: new Date().toISOString(),
             controller,
@@ -60,7 +60,7 @@ export class OperationManager {
                 } else {
                     record.state = "succeeded";
                     record.result = result;
-                    record.phase = "完成";
+                    record.phase = "Done";
                 }
                 record.finishedAt = new Date().toISOString();
             },
@@ -82,8 +82,8 @@ export class OperationManager {
         const record = this.records.get(id);
         if (!record) return undefined;
         if (record.state === "running" && !record.controller.signal.aborted) {
-            record.controller.abort(new Error("用户取消了操作"));
-            record.phase = "正在取消";
+            record.controller.abort(new Error("User cancelled the operation"));
+            record.phase = "Cancelling";
         }
         return this.snapshot(record);
     }
@@ -107,11 +107,11 @@ export class OperationManager {
             this.records.delete(completed.shift()!.id);
         }
         if (this.records.size >= MAX_OPERATIONS) {
-            throw new Error("当前正在执行的本机操作太多，请等待已有操作完成");
+            throw new Error("Too many local operations are running. Wait for existing operations to finish");
         }
     }
 }
 
 function readableAbortReason(reason: unknown): string {
-    return reason instanceof Error ? reason.message : "操作已取消";
+    return reason instanceof Error ? reason.message : "Operation cancelled";
 }

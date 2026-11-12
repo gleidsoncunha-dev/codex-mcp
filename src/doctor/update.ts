@@ -37,7 +37,7 @@ export function getUpdateInstallerInvocation(
         };
     }
 
-    throw new Error(`当前系统暂不支持自动更新：${platform}`);
+    throw new Error(`Automatic updates are not supported on this system: ${platform}`);
 }
 
 export interface SelfUpdateOptions {
@@ -51,15 +51,15 @@ export async function runSelfUpdate(options: SelfUpdateOptions = {}): Promise<vo
         await access(invocation.scriptPath);
     } catch {
         throw new Error(
-            "当前安装缺少更新组件。请重新运行一次安装脚本，之后即可使用 `codex-mcp update`。",
+            "This installation is missing the updater. Rerun the installation script to enable `codex-mcp update`.",
         );
     }
 
     options.signal?.throwIfAborted();
-    printInfo("正在检查并安装最新版 codex-mcp…");
+    printInfo("Checking for and installing the latest codex-mcp…");
     const exitCode = await runInstaller(invocation, options);
     if (exitCode !== 0) {
-        throw new Error(`更新没有完成（退出码 ${exitCode}）`);
+        throw new Error(`Update incomplete (exit code ${exitCode})`);
     }
 }
 
@@ -83,7 +83,7 @@ async function runInstaller(invocation: UpdateInstallerInvocation, options: Self
         };
         const onAbort = (): void => {
             void terminateChildProcess(child, 5_000, 2_000).finally(() => {
-                finishReject(options.signal?.reason instanceof Error ? options.signal.reason : new Error("更新已取消"));
+                finishReject(options.signal?.reason instanceof Error ? options.signal.reason : new Error("Update cancelled"));
             });
         };
         if (captureOutput) {

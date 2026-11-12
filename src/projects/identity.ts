@@ -12,7 +12,7 @@ const ID_HASH_LENGTH = 16;
 export function canonicalProjectPath(input: string): string {
     const absolutePath = resolve(expandHomePath(input.trim()));
     if (!existsSync(absolutePath) || !statSync(absolutePath).isDirectory()) {
-        throw new Error(`这个项目目录不存在或不是文件夹：${input}`);
+        throw new Error(`This project directory does not exist or is not a folder: ${input}`);
     }
     return realpathSync.native(absolutePath);
 }

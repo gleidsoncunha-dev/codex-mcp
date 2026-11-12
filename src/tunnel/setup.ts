@@ -90,7 +90,7 @@ export async function ensureTunnelSetup(
         return await loadCommittedTunnelSetup(userConfig, host, port);
     }
     if (!canPromptInteractively()) {
-        throw new Error("还没有设置公网地址，请先在终端运行 `codex-mcp setup`");
+        throw new Error("Public address is not set. Run `codex-mcp setup` in a terminal first");
     }
     ensureUserConfigDirs();
     const starter = ensureStarterUserConfig(host, port);
@@ -155,7 +155,7 @@ export async function discoverCloudflareSetup(
     const discovery = await discoverCloudflareZones();
     if (discovery.zones.length === 0) {
         throw new Error(
-            "Cloudflare 账号里没有可用于公网 hostname 的域名。Named Tunnel 的 <UUID>.cfargotunnel.com 只能作为 CNAME 目标。",
+            "No domain suitable for a public hostname is available in this Cloudflare account. Named Tunnel <UUID>.cfargotunnel.com addresses can only be CNAME targets.",
         );
     }
     const currentDomain = userConfig.publicAccess?.domain;
@@ -190,10 +190,10 @@ export async function prepareCloudflareTunnelSetup(
     const discovery = await discoverCloudflareZones();
     const zone = normalizeHostname(input.zone);
     if (!discovery.zones.includes(zone)) {
-        throw new Error(`Cloudflare 账号中没有可用域名：${zone}`);
+        throw new Error(`No available domain in Cloudflare account: ${zone}`);
     }
     const zoneId = discovery.zoneIds[zone];
-    if (!zoneId) throw new Error(`无法确定 Cloudflare zone ID：${zone}`);
+    if (!zoneId) throw new Error(`Cannot determine Cloudflare zone ID: ${zone}`);
     const domain = cloudflareManagedHostname(zone, input.prefix);
     const preferredTunnelName = previousManaged?.tunnelName ?? defaultTunnelName();
     const tunnel = await ensureTunnelCreated(
@@ -204,7 +204,7 @@ export async function prepareCloudflareTunnelSetup(
     );
     try {
         const credentialsFile = getCredentialsPath(tunnel.id);
-        if (!existsSync(credentialsFile)) throw new Error(`没有找到 Tunnel 凭据：${credentialsFile}`);
+        if (!existsSync(credentialsFile)) throw new Error(`Tunnel credentials not found: ${credentialsFile}`);
         assertCredentialMatches(credentialsFile, tunnel.id, login.accountID);
         const generated = writeCloudflaredRevision({
             tunnelId: tunnel.id,
@@ -240,7 +240,7 @@ export async function prepareCloudflareTunnelSetup(
         if (!tunnel.created) throw error;
         const cleanupErrors: string[] = [];
         await cleanupCreatedTunnel(bin, tunnel.id, cleanupErrors);
-        if (cleanupErrors.length > 0) throw new Error(`${readableError(error)}；${cleanupErrors.join("；")}`);
+        if (cleanupErrors.length > 0) throw new Error(`${readableError(error)}; ${cleanupErrors.join("; ")}`);
         throw error;
     }
 }
@@ -252,7 +252,7 @@ export async function loadCommittedTunnelSetup(
 ): Promise<TunnelSetupResult> {
     const access = userConfig.publicAccess;
     if (!access) {
-        throw new Error("还没有设置公网地址，请先运行 `codex-mcp setup`");
+        throw new Error("Public address is not set. Run `codex-mcp setup` first");
     }
     if (access.kind === "external") {
         return {
@@ -265,11 +265,11 @@ export async function loadCommittedTunnelSetup(
 
     const bin = await suggestCloudflaredBin(access.cloudflaredBin);
     if (!bin) {
-        throw new Error("已配置 Cloudflare Tunnel，但找不到 cloudflared；请运行 `codex-mcp doctor`");
+        throw new Error("Cloudflare Tunnel is configured, but cloudflared is missing; run `codex-mcp doctor`");
     }
     const credentialsFile = getCredentialsPath(access.tunnelId);
     if (!existsSync(credentialsFile)) {
-        throw new Error(`缺少 Tunnel 凭据：${credentialsFile}。请运行 \`codex-mcp setup\` 重新设置`);
+        throw new Error(`Missing Tunnel credentials: ${credentialsFile}. Run \`codex-mcp setup\` to set up again`);
     }
     assertCredentialMatches(credentialsFile, access.tunnelId, access.accountId);
     const configPath = resolveCloudflaredRuntimeConfigPath(access);
@@ -282,8 +282,8 @@ export async function loadCommittedTunnelSetup(
         parsed.serviceUrl !== expectedService
     ) {
         throw new Error(
-            `已提交公网配置与 Tunnel 运行文件不一致：${configPath}。` +
-            "运行时不会自动重写，请先运行 `codex-mcp doctor`，再通过 setup 修复。",
+            `Committed public configuration does not match the Tunnel runtime file: ${configPath}.` +
+            "Runtime will not rewrite it automatically. Run `codex-mcp doctor`, then repair through setup.",
         );
     }
     return {
@@ -305,11 +305,11 @@ async function runConfigWizard(
     port: number,
     forceCloudflareLogin: boolean,
 ): Promise<TunnelSetupResult> {
-    printInfo("设置公网连接");
-    printInfo(`验证成功后才会提交到：${getUserConfigPath()}`);
+    printInfo("Set up public access");
+    printInfo(`Configuration will only be committed after successful verification: ${getUserConfigPath()}`);
 
     const useCloudflared = await askYesNo(
-        "要让 codex-mcp 自动配置 Cloudflare Tunnel 吗？",
+        "Allow codex-mcp to configure Cloudflare Tunnel automatically?",
         userConfig.publicAccess?.kind !== "external",
     );
     if (!useCloudflared) {
@@ -336,26 +336,26 @@ async function runConfigWizard(
         ? userConfig.publicAccess
         : undefined;
     const bin = await withSpinner(
-        "正在准备 Cloudflare 连接组件…",
-        "Cloudflare 连接组件已就绪",
+        "Preparing Cloudflare connection tools…",
+        "Cloudflare connection tools ready",
         () => resolveOrInstallCloudflaredBin(previousManaged?.cloudflaredBin),
     );
     const login = await ensureLogin(bin, forceCloudflareLogin);
 
     const discovery = await withSpinner(
-        "正在读取 Cloudflare 账号中的域名…",
-        "Cloudflare 域名读取完成",
+        "Reading domains from Cloudflare account…",
+        "Cloudflare domains loaded",
         () => discoverCloudflareZones(),
     );
     if (discovery.zones.length === 0) {
         throw new Error(
-            "Cloudflare 账号里没有可用于公网 hostname 的域名。" +
-            "Named Tunnel 的 <UUID>.cfargotunnel.com 只能作为 CNAME 目标，不能直接作为 ChatGPT 地址。",
+            "No domain suitable for a public hostname is available in this Cloudflare account." +
+            "Named Tunnel <UUID>.cfargotunnel.com addresses can only be CNAME targets, not ChatGPT connection addresses.",
         );
     }
-    printSuccess(`已检测到 ${discovery.zones.length} 个可用 Cloudflare 域名。`);
+    printSuccess(`Detected ${discovery.zones.length} available Cloudflare domains.`);
     if (!discovery.complete) {
-        printWarning("Cloudflare 没有允许列出全部域名，当前只使用登录时选中的域名。");
+        printWarning("Cloudflare did not allow listing all domains. Only the domain selected during login will be used.");
     }
 
     const previousDomain = userConfig.publicAccess?.domain;
@@ -363,13 +363,13 @@ async function runConfigWizard(
     const zone = discovery.zones.length === 1
         ? discovery.zones[0]!
         : await askSelect(
-              "请选择用于 codex-mcp 的 Cloudflare 域名",
+              "Choose a Cloudflare domain for codex-mcp",
               discovery.zones.map((value) => ({ value, label: value })),
               preferredZone,
           );
-    if (discovery.zones.length === 1) printSuccess(`使用 Cloudflare 域名：${zone}`);
+    if (discovery.zones.length === 1) printSuccess(`Using Cloudflare domain: ${zone}`);
     const zoneId = discovery.zoneIds[zone];
-    if (!zoneId) throw new Error(`无法确定 Cloudflare zone ID：${zone}`);
+    if (!zoneId) throw new Error(`Cannot determine Cloudflare zone ID: ${zone}`);
 
     const previousPrefix = subdomainPrefixForZone(previousDomain, zone);
     const prefixDefault = previousPrefix && !previousPrefix.includes(".") ? previousPrefix : "codex-mcp";
@@ -385,7 +385,7 @@ async function runConfigWizard(
     try {
         const credentialsFile = getCredentialsPath(tunnel.id);
         if (!existsSync(credentialsFile)) {
-            throw new Error(`没有找到 Tunnel 凭据：${credentialsFile}`);
+            throw new Error(`Tunnel credentials not found: ${credentialsFile}`);
         }
         assertCredentialMatches(credentialsFile, tunnel.id, login.accountID);
         const generated = writeCloudflaredRevision({
@@ -394,7 +394,7 @@ async function runConfigWizard(
             hostname: domain,
             serviceUrl: localServiceUrl(host, port),
         });
-        printSuccess(`candidate Tunnel 配置已准备：${generated.path}`);
+        printSuccess(`Candidate Tunnel configuration ready: ${generated.path}`);
 
         const publicAccess: CloudflarePublicAccessConfig = {
             kind: "cloudflare",
@@ -427,7 +427,7 @@ async function runConfigWizard(
         const cleanupErrors: string[] = [];
         await cleanupCreatedTunnel(bin, tunnel.id, cleanupErrors);
         if (cleanupErrors.length > 0) {
-            throw new Error(`${readableError(error)}；${cleanupErrors.join("；")}`);
+            throw new Error(`${readableError(error)}; ${cleanupErrors.join("; ")}`);
         }
         throw error;
     }
@@ -444,7 +444,7 @@ export async function resolveOrInstallCloudflaredBin(configured?: string): Promi
         await probeCloudflaredVersion(installed.path);
         return installed.path;
     } catch (error) {
-        throw new Error(`公网连接组件准备失败：${readableError(error)}`);
+        throw new Error(`Failed to prepare public connection tools: ${readableError(error)}`);
     }
 }
 
@@ -458,11 +458,11 @@ async function askPublicDomain(
 ): Promise<string> {
     while (true) {
         const domainRaw = (await askLine(
-            "给 ChatGPT 使用的域名（例如 mcp.example.com）",
+            "Domain for ChatGPT (for example, mcp.example.com)",
             defaultValue,
         )).trim();
         if (!domainRaw) {
-            printWarning("需要填写一个域名。没有域名时可用 `codex-mcp start --local` 只在本机运行。");
+            printWarning("Enter a domain. Without one, use `codex-mcp start --local` for local access only.");
             continue;
         }
         let domain: string;
@@ -473,7 +473,7 @@ async function askPublicDomain(
             continue;
         }
         if (allowedZones && !hostnameBelongsToZones(domain, allowedZones)) {
-            printWarning(`这个域名不属于当前 Cloudflare 账号检测到的域名：${allowedZones.join("、")}`);
+            printWarning(`This domain is not among the domains detected in the current Cloudflare account: ${allowedZones.join(", ")}`);
             continue;
         }
         return domain;
@@ -535,24 +535,24 @@ export function defaultTunnelName(
 export function cloudflareManagedHostname(zone: string, prefix: string): string {
     const normalizedPrefix = prefix.trim();
     if (!normalizedPrefix) {
-        throw new Error("需要填写子域名前缀，例如 codex-mcp。");
+        throw new Error("Enter a subdomain prefix, for example codex-mcp.");
     }
     if (normalizedPrefix.includes(".")) {
         throw new Error(
-            "Cloudflare 默认 Universal SSL 只覆盖所选域名的一级子域名。" +
-            "请使用不含点号的前缀；多级子域名需要先配置对应 Edge Certificate。",
+            "Cloudflare default Universal SSL only covers first-level subdomains of the selected domain." +
+            "Use a prefix without dots. Multi-level subdomains require a matching Edge Certificate first.",
         );
     }
     const hostname = normalizeHostname(`${normalizedPrefix}.${zone}`);
     if (findMatchingZone(hostname, [zone]) !== zone) {
-        throw new Error("子域名不属于所选 Cloudflare 域名");
+        throw new Error("Subdomain does not belong to the selected Cloudflare domain");
     }
     return hostname;
 }
 
 async function askCloudflareHostname(zone: string, defaultPrefix: string): Promise<string> {
     while (true) {
-        const prefix = (await askLine("子域名前缀", defaultPrefix)).trim();
+        const prefix = (await askLine("Subdomain prefix", defaultPrefix)).trim();
         try {
             return cloudflareManagedHostname(zone, prefix);
         } catch (error) {

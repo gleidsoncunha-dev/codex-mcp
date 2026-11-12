@@ -1,6 +1,6 @@
 export function summaryCardHtml(): string {
     return `<!doctype html>
-<html lang="zh-CN">
+<html lang="en-US">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -195,11 +195,11 @@ export function summaryCardHtml(): string {
 </head>
 <body>
   <div class="frame">
-    <section class="shell running" id="shell" aria-label="进度汇报">
+    <section class="shell running" id="shell" aria-label="Progress report">
       <div class="head">
         <span class="icon" id="icon" aria-hidden="true"></span>
-        <span class="tool" id="tool">进度汇报</span>
-        <span class="status" id="status">正在总结…</span>
+        <span class="tool" id="tool">Progress report</span>
+        <span class="status" id="status">Summarizing…</span>
       </div>
       <div class="panel" id="panel"></div>
     </section>
@@ -313,8 +313,8 @@ export function summaryCardHtml(): string {
   function paintRunning() {
     shell.className = "shell running";
     iconEl.innerHTML = iconSvg("loading");
-    toolEl.textContent = "进度汇报";
-    statusEl.textContent = "正在总结…";
+    toolEl.textContent = "Progress report";
+    statusEl.textContent = "Summarizing…";
     panel.innerHTML = "";
     notifyHeight();
   }
@@ -323,22 +323,22 @@ export function summaryCardHtml(): string {
     var ok = card.ok !== false;
     var kind = !ok ? "fail" : "ok";
     var summaryText = String(card.summaryText || card.title || "").trim() || "—";
-    var outcome = !ok ? "调用失败" : "本轮处理已结束";
+    var outcome = !ok ? "Call failed" : "Round complete";
 
     shell.className = "shell " + (kind === "ok" ? "success" : kind === "fail" ? "failure" : "progress");
     iconEl.innerHTML = iconSvg(kind);
-    toolEl.textContent = card.title || "本轮总结";
+    toolEl.textContent = card.title || "Round summary";
     statusEl.textContent = outcome;
     statusEl.title = outcome;
 
     var rows = [
-      '<div class="row"><dt>总结</dt><dd>' + escapeHtml(summaryText) + "</dd></div>"
+      '<div class="row"><dt>Summary</dt><dd>' + escapeHtml(summaryText) + "</dd></div>"
     ];
     if (card.fileChanges && typeof card.fileChanges.count === "number") {
-      rows.push('<div class="row"><dt>文件变更</dt><dd>' + escapeHtml(String(card.fileChanges.count)) + " 个</dd></div>");
+      rows.push('<div class="row"><dt>File changes</dt><dd>' + escapeHtml(String(card.fileChanges.count)) + " items</dd></div>");
     }
     rows.push(
-      '<div class="row outcome ' + kind + '"><dt>结果</dt><dd>' +
+      '<div class="row outcome ' + kind + '"><dt>Result</dt><dd>' +
         escapeHtml(outcome) +
         "</dd></div>"
     );
@@ -364,7 +364,7 @@ export function summaryCardHtml(): string {
     if (uiCard && typeof uiCard === "object") {
       return {
         ok: uiCard.ok !== false && ok,
-        title: (structured && structured.title) || "本轮总结",
+        title: (structured && structured.title) || "Round summary",
         summaryText: uiCard.summaryText || uiCard.title || (structured && structured.summary) || args.summary || "",
         fileChanges: structured && structured.fileChanges,
         running: false
@@ -374,7 +374,7 @@ export function summaryCardHtml(): string {
     if (!structured && !args.summary) return null;
     return {
       ok: ok,
-      title: (structured && structured.title) || args.title || "本轮总结",
+      title: (structured && structured.title) || args.title || "Round summary",
       summaryText: (structured && structured.summary) || args.summary || "",
       fileChanges: structured && structured.fileChanges,
       running: false

@@ -89,7 +89,7 @@ export function buildUiCard(
             (typeof args?.summary === "string" && args.summary.trim()) ||
             "";
         card.summaryText = summaryText || call.title;
-        card.label = "本轮总结";
+        card.label = "Round summary";
     }
 
     return card;

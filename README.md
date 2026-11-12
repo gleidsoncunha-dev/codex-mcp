@@ -1,945 +1,285 @@
 # codex-mcp
 
-让 ChatGPT 直接操作你电脑上的代码项目。
+Let ChatGPT work directly on code projects on your computer. Ask it to explain a project, inspect changes, fix an error, run tests, finish a feature, or switch projects. codex-mcp reads files, edits code, runs commands, inspects Git, and returns results to ChatGPT.
 
-安装并连接后，你可以在 ChatGPT 里直接说：
+To reduce ambiguity, the multi-project daemon exposes 15 top-level tools: `project_control`, `read`, `read_image`, `apply_patch`, `ls`, `grep`, `glob`, `code_explore`, `exec_command`, `write_stdin`, `skills_list`, `skill_read`, `mcp_tools`, `mcp_call`, and `summary`. Git and package management use `exec_command`.
 
-- “先看看这个项目是做什么的”
-- “检查一下现在有哪些改动”
-- “修掉这个报错”
-- “跑一下测试”
-- “把这个功能实现完”
-- “切到另一个项目继续”
+> This is a powerful local tool for personal development. Connect only your own ChatGPT account and trusted projects.
 
-codex-mcp 会在你的电脑上读取文件、修改代码、执行命令、查看 Git，并把结果返回给 ChatGPT。
+## English edition
 
-为了减少模型选择工具时的歧义，多项目 daemon 只公开 15 个顶层工具：`project_control` 加上 `read`、`read_image`、`apply_patch`、`ls`、`grep`、`glob`、`code_explore`、`exec_command`、`write_stdin`、`skills_list`、`skill_read`、`mcp_tools`、`mcp_call`、`summary`。Git 和包管理等操作统一通过 `exec_command` 完成。
+This checkout translates the interface, CLI, OAuth pages, tool cards, installers, and documentation. The original [meesii/codex-mcp](https://github.com/meesii/codex-mcp) is MIT licensed. Upstream npm/packages/scripts below install the upstream edition. Run this English checkout with:
 
-> codex-mcp 面向个人开发环境使用。它拥有很强的本机操作能力，请只连接你自己的 ChatGPT 和你信任的项目。
+```bash
+npm ci
+npm run build
+node dist/cli.js open
+```
 
----
+For global installation, run `npm pack`, then `npm install -g /path/to/generated-package.tgz`. The existing `codex-mcp update` follows upstream and may replace this translation; reinstall the English artifact to retain it. See [HANDOFF.md](HANDOFF.md) for delivery status.
 
-## 它是怎么工作的？
-
-codex-mcp 把本机控制面和真正处理 MCP 请求的 Runtime 分开：
+## Architecture
 
 ```text
 Web Console / CLI
-       │
-       ▼
-本机 Controller ─── 项目、配置、日志、诊断、更新
-       │
-       ▼
-MCP Runtime ─────── 工具执行、OAuth、项目运行态
-       │
-       ▼
-Cloudflare Tunnel 或你自己的 HTTPS 入口
-       │
-       ▼
+       ↓
+Local Controller ── Projects, configuration, logs, diagnostics, updates
+       ↓
+MCP Runtime ─────── Tools, OAuth, project runtimes
+       ↓
+Cloudflare Tunnel or your own HTTPS endpoint
+       ↓
 ChatGPT
 ```
 
-Controller 只监听本机，负责管理状态；Runtime 可以启动或停止。`codex-mcp stop` 只停止 Runtime，所以 Web Console 仍然能打开并用于修复配置；`codex-mcp shutdown` 才会把两者都关闭。
+Controller listens locally and manages state. Runtime starts/stops independently. `stop` leaves Web Console available for repairs; `shutdown` closes both.
 
-所有注册项目共享 **一个 MCP Runtime**。`codex-mcp project add` 只注册项目，不会隐式启动 Runtime；`codex-mcp start` 会先注册当前项目，再按保存的运行模式启动 Runtime。
+All projects share **one Runtime**. `project add` only registers; `start` registers first, then starts Runtime in the saved mode. Each conversation binds to one project, and different conversations can work independently. ChatGPT supplies a stable conversation ID. Other clients without conversation metadata or persistent MCP sessions fall back to a shared OAuth-client binding; maintain independent MCP sessions for them.
 
-每个 ChatGPT 对话只会绑定一个项目。这样你可以在不同对话里分别处理不同项目，也可以明确切换当前对话使用的项目。ChatGPT 会提供稳定的对话级 session 标识；其它 MCP 客户端如果既不提供对话元数据也不维持 MCP session，绑定会退化为该 OAuth client 的共享绑定，因此这类客户端应保持独立 MCP session。
+## Requirements
 
----
+- Node.js **22 or later**.
+- Git is recommended for status, history, and diffs.
+- ChatGPT access needs public HTTPS reaching local codex-mcp. A Cloudflare account and domain already connected to it enable automatic Tunnel management. An existing reverse proxy/server/HTTPS endpoint also works.
+- Codex, Claude Code, and Agent Skills are optional capability sources; core functionality does not require them.
 
-## 你需要准备什么？
+# Quick start
 
-### 必需
+## 1. Install
 
-- **Node.js 22 或更高版本**
-
-### 推荐
-
-- **Git**：用于查看状态、提交历史和差异
-
-### 如果要从 ChatGPT 连接
-
-你需要一个可以通过 HTTPS 访问到本机 codex-mcp 的公网地址。
-
-最简单的方式是：
-
-- 一个 **Cloudflare 账号**
-- 一个已经接入 Cloudflare 的 **域名**
-
-codex-mcp 可以自动创建和管理 Cloudflare Tunnel。
-
-如果你已经有自己的反向代理、服务器或其他 HTTPS 入口，也可以不让 codex-mcp 管理 Cloudflare。
-
-### 可选
-
-如果电脑上已经安装了这些工具，codex-mcp 还可以读取它们已有的能力：
-
-- Codex
-- Claude Code
-- Agent Skills
-
-没有这些也不影响 codex-mcp 的核心功能。
-
----
-
-# 快速开始
-
-## 1. 安装
-
-推荐用 npm：
+Upstream npm installation:
 
 ```bash
 npm install -g @meesii/codex-mcp
 ```
 
-也可以用安装脚本：
-
-### macOS / Linux
+Upstream macOS / Linux script:
 
 ```bash
 curl -fsSL https://github.com/meesii/codex-mcp/releases/latest/download/install.sh | sh
 ```
 
-### Windows PowerShell
+Upstream Windows PowerShell script:
 
 ```powershell
 irm https://github.com/meesii/codex-mcp/releases/latest/download/install.ps1 | iex
 ```
 
-安装完成后，如果终端提示找不到 `codex-mcp`，关闭终端并重新打开一次。
+If the command is missing, reopen the terminal. Check `codex-mcp --version`.
 
-检查版本：
-
-```bash
-codex-mcp --version
-```
-
----
-
-## 2. 打开 Web Console（推荐）
-
-运行：
+## 2. Open Web Console (recommended)
 
 ```bash
 codex-mcp open
 ```
 
-这只会启动本机 Controller 并打开 Web Console，**不会启动 MCP Runtime，也不会自动修改公网配置**。
+This starts Controller and opens the console, **without starting Runtime or automatically changing public configuration**.
 
-推荐按这个顺序使用：
+1. Add directories under **Projects**.
+2. For ChatGPT, open **Connection**: **Public address → Connection password → Check connection**.
+3. Return to **Overview** and select **Start public service** or **Start locally**.
+4. Manage capabilities, diagnostics, logs, and updates under **System**.
 
-1. 在“项目”里添加 ChatGPT 可以操作的目录
-2. 如果要从 ChatGPT 连接，在“连接”里按“公网地址 → 连接密码 → 检查连接”三步完成配置
-3. 回到“概览”，明确选择“启动公网服务”或“仅本机启动”
-4. Codex / Claude / Skills、诊断、日志和更新统一放在“系统”里
-
-如果你更喜欢终端，也可以完全不用 Web：
+CLI-only use is supported:
 
 ```bash
 codex-mcp project add /path/to/project
-codex-mcp setup        # 只有需要 ChatGPT 公网连接时才需要
+codex-mcp setup        # Only for public ChatGPT access
 codex-mcp start
 ```
 
-### 公网连接
+### Public access
 
-默认情况下，codex-mcp 会询问是否自动配置 Cloudflare Tunnel。
+Automatic setup prepares cloudflared, opens Cloudflare login, reads/selects a domain, and creates/reuses the computer's Tunnel. Existing services stay online while the candidate is prepared and pause briefly for actual switching. The candidate must connect before DNS changes.
 
-选择自动配置后，它会：
+Setup saves old DNS, switches to the candidate, and verifies that a random public probe returns to this computer within the default fallback window of at most five minutes. Ctrl+C safely cancels. Only successful verification atomically commits local configuration; failures restore DNS and preserve the previous usable config.
 
-1. 准备 `cloudflared`
-2. 打开浏览器登录 Cloudflare
-3. 读取账号中的域名
-4. 让你选择一个域名
-5. 创建或复用当前电脑对应的 Tunnel
-6. candidate 准备完成前保持现有后台服务在线；只有实际切换时才短暂停止
-7. 启动 candidate connector，确认它已经连接 Cloudflare
-8. 保存原 DNS 记录，再把域名切换到 candidate Tunnel
-9. 在默认最多 5 分钟的兜底窗口内验证公网随机探针确实回到这台电脑；可随时 Ctrl+C 安全取消
-10. 验证成功后才原子提交本机配置；失败会恢复 DNS，并保留上一次可用配置
+Example: `https://codex-mcp.example.com/mcp`. Automatic setup requires a domain already connected to Cloudflare. `<UUID>.cfargotunnel.com` is only a CNAME target, not a ChatGPT MCP address.
 
-例如最终得到：
+For your own HTTPS endpoint, choose it in setup, enter its domain, and securely forward `https://your-domain.example/mcp` to local codex-mcp.
 
-```text
-https://codex-mcp.example.com/mcp
-```
+### Password and capabilities
 
-如果你的 Cloudflare 账号里没有已经接入 Cloudflare 的域名，自动 Tunnel 模式无法完成配置。
+After public verification, setup generates the connection password. **Save it.** Only its hash is stored; plaintext cannot be recovered. Reset with `codex-mcp auth`.
 
-> Cloudflare Tunnel 生成的 `<UUID>.cfargotunnel.com` 是 DNS CNAME 目标，不是直接给 ChatGPT 使用的 MCP 地址。
+Setup then detects Codex, Claude Code, and Agent Skills. Use all, customize MCP/Skills sources, or disable all. Automatic sync is recommended. A source missing in the current directory does not disable the same source already enabled elsewhere. Cancelling this optional step preserves completed connection/password setup.
 
-### 使用自己的 HTTPS 入口
-
-如果你不想让 codex-mcp 管理 Cloudflare，可以在 setup 中选择自己提供公网入口，然后填写你的域名。
-
-此时需要你自己保证：
-
-```text
-https://你的域名/mcp
-```
-
-能够安全地转发到本机 codex-mcp 服务。
-
-### 连接密码
-
-公网验证完成后，codex-mcp 会先生成 ChatGPT 连接密码。
-
-**请保存这个密码。**
-
-电脑上只保存密码哈希，不保存明文密码。忘记以后不能找回，只能重新设置。
-
-重新设置密码：
-
-```bash
-codex-mcp auth
-```
-
-### 外部能力（可选）
-
-核心公网连接和连接密码完成后，setup 还会检测当前环境是否存在：
-
-- Codex
-- Claude Code
-- Agent Skills
-
-你可以选择：
-
-- 使用检测到的全部能力
-- 自定义启用哪些 MCP / Skills
-- 全部关闭
-
-默认推荐自动同步。这样这些工具的配置发生变化后，codex-mcp 可以自动刷新。当前目录没有检测到某个能力源，不会再把用户之前为其它项目启用的同类能力全局关闭；取消这一步也不会破坏已经完成的公网连接和连接密码。
-
----
-
-## 3. 用 CLI 启动项目
-
-进入项目目录：
+## 3. Start a project
 
 ```bash
 cd /path/to/your-project
 codex-mcp start
 ```
 
-`start` 的顺序是：先注册当前项目，再启动/复用 Controller，最后启动 Runtime。这样即使公网配置有问题，项目注册也不会丢，CLI 会给出 Web Console 地址供你继续修复。
-
-如果还没有配置公网连接，裸 `codex-mcp start` 默认使用**本机模式**。显式运行 `codex-mcp start --local` 也会把本机模式保存为以后默认；公网模式同样会保存，下次裸 `start` 会复用实际运行模式。
-
-同一个项目以后再次运行不会创建第二套服务器，只会刷新项目状态并确保共享 Runtime 可用。
-
-你也可以从其他目录指定项目：
+Registration precedes Controller/Runtime startup, so it survives public configuration errors; CLI provides a console address for repairs. Without public config, plain start defaults to **local mode**. Explicit local/public modes are saved and reused by later starts. Repeated starts refresh state and reuse one server.
 
 ```bash
 codex-mcp start --root /path/to/your-project
-```
-
-查看当前状态：
-
-```bash
 codex-mcp status
 ```
 
-你会看到：
+Status includes Controller/console, Runtime/current/default mode, local/public URLs, Tunnel, CLI/daemon versions, restart advice on mismatches, projects, and binding counts.
 
-- Controller 是否运行、Web Console 地址
-- MCP Runtime 是否运行，以及当前/默认运行模式
-- 本机 MCP 地址
-- 公网 MCP 地址
-- Cloudflare Tunnel 是否在线
-- 当前 CLI 版本和正在运行的 daemon 版本
-- 两者版本不一致时的 `codex-mcp restart` 提示
-- 已注册项目
-- 每个项目当前有多少会话绑定
+## 4. Connect ChatGPT
 
----
+Entry points/plans can change; follow your account's current Apps settings. Typically enable **Developer Mode**, open **Apps → Create**, enter the public MCP URL, scan tools, finish OAuth using the setup password, then create/enable the App. You can then work on local projects. Full write access depends on plan, workspace permissions, and product availability; check account support if custom Apps/Developer Mode is missing.
 
-## 4. 连接 ChatGPT
+# Multiple projects
 
-ChatGPT 的 MCP App 入口和可用套餐可能会变化，请以你当前账号的 Apps 设置为准。
-
-当前常见流程是：
-
-1. 在 ChatGPT 中启用 **Developer Mode**
-2. 打开 **Apps → Create**
-3. 填入 codex-mcp 的 MCP 地址
-4. 扫描工具（Scan Tools）
-5. 按提示完成 OAuth / 密码验证
-6. 创建并启用这个 App
-
-MCP 地址就是 setup 最后显示的公网地址，例如：
-
-```text
-https://codex-mcp.example.com/mcp
-```
-
-授权时使用 `codex-mcp setup` 生成的连接密码。
-
-连接完成后，就可以直接让 ChatGPT 操作本机项目。
-
-> 完整 MCP 写入能力是否可用取决于 ChatGPT 当前的套餐、工作区权限和产品开放状态。如果你的设置里没有 Developer Mode 或创建自定义 MCP App 的入口，请先确认当前 ChatGPT 账号是否支持。
-
----
-
-# 多项目怎么用？
-
-这是当前版本最重要的使用方式。
-
-先区分两个概念：
-
-- **注册项目（Registered Project）**：通过 Web Console、`codex-mcp project add` 或 `codex-mcp start` 注册的项目。一个 ChatGPT 对话同一时间只绑定一个注册项目。
-- **会话绑定（Conversation Binding）**：ChatGPT 对话当前选择的注册项目；文件和命令工具只能在这个项目目录内运行。
-
-项目注册由本机 Controller/CLI 完成；模型只通过 `project_control` 选择已经注册的项目，不会自行注册项目或扩大路径边界。
-
-## 注册多个项目
-
-假设电脑上有三个项目：
-
-```text
-~/code/api
-~/code/web
-~/code/mobile
-```
-
-分别进入目录运行：
+A registered project comes from Console, project add, or start. A conversation binding selects one registered project as file/command context. Registration belongs to local Controller/CLI; models only select existing registrations using project_control.
 
 ```bash
 cd ~/code/api
 codex-mcp start
-
 cd ~/code/web
 codex-mcp start
-
 cd ~/code/mobile
 codex-mcp start
-```
-
-它们会全部注册到同一个 codex-mcp 后台服务。
-
-不会创建三个端口，也不会创建三个 Tunnel。
-
-查看所有项目：
-
-```bash
 codex-mcp project list
-```
-
-也可以显式注册指定目录：
-
-```bash
 codex-mcp project add /path/to/project
+codex-mcp project info <project-ID-name-or-directory>
 ```
 
-查看单个项目详情：
+All projects share one service/port/Tunnel. Ask ChatGPT to use the web project and inspect its home page; another conversation can independently use api. Ask to switch projects explicitly. Existing bindings require confirmation before switching.
 
-```bash
-codex-mcp project info <项目 ID、项目名或目录>
-```
+Clear old bindings individually/all together in Projects, or run `codex-mcp bindings clean [project]`. Only selected bindings are cleared; conversations/files remain and sessions must select a project again.
 
----
+Deactivate with `codex-mcp project remove <project-ID-name-or-directory>`; omit the target inside its directory. Other projects/service/Tunnel continue. Reactivate with start or project add.
 
-## ChatGPT 对话会绑定一个项目
+`stop` closes Runtime, project runtimes, and Tunnel, preserving registrations and Controller/Console. `restart` restarts Runtime in its current mode. `shutdown` closes everything.
 
-一个 ChatGPT 对话只操作一个项目。
+# Capabilities and boundaries
 
-例如你可以说：
+- Read/search files, strings, regex, patterns, directories, and code relationships.
+- Use transactional apply_patch for precise replacements and batch create/overwrite/delete, with rollback on commit failure.
+- Run builds/tests, install dependencies, start servers, and manage long processes.
+- Use existing Git through exec_command.
+- Select one registered project per conversation using project_control, then inspect code/skills/command results.
 
-> 使用 web 项目，看看首页现在有什么问题。
+File tools and command working directories stay within the bound project root. Relative paths begin there. Register other directories separately and switch explicitly; absolute paths do not bypass file tool boundaries.
 
-ChatGPT 会通过 `project_control` 选择对应项目，然后后面的文件读取、代码修改、命令执行和 Git 操作都会以这个项目为上下文。
+> This is not a complete OS sandbox. Shell commands retain the system user's permissions.
 
-另一个 ChatGPT 对话可以同时绑定 `api` 项目，互不影响。
+# Codex, Claude Code, and Skills
 
-如果要在当前对话切换项目，可以直接说：
-
-> 切换到 api 项目。
-
-切换已有绑定时需要明确确认，不会静默跳到另一个项目。
-
-如果某些旧会话不再需要保留项目绑定，可以在 Web Console 的“项目”页面逐个或全部清除，也可以在终端运行：
-
-```bash
-codex-mcp bindings clean [项目]
-```
-
-终端会列出该项目的会话编号；只会清理你显式选中的绑定。清理不会删除 ChatGPT 对话或项目文件，这些会话下次使用项目工具时需要重新选择项目。
-
----
-
-## 停止一个项目
-
-推荐使用：
-
-```bash
-codex-mcp project remove <项目 ID、项目名或目录>
-```
-
-如果当前终端就在项目目录，也可以省略目标：
-
-```bash
-codex-mcp project remove
-```
-
-这只会停用目标项目；后台服务、Cloudflare Tunnel 和其他项目仍然继续运行。重新启用时，再运行 `codex-mcp start` 或 `codex-mcp project add <目录>`。
-
----
-
-## 停止或重启后台服务
-
-停止：
-
-```bash
-codex-mcp stop
-```
-
-重启：
-
-```bash
-codex-mcp restart
-```
-
-`stop` 只关闭 MCP Runtime、项目运行态和 Cloudflare Tunnel，**Controller / Web Console 继续运行**，项目注册状态也会保留。`restart` 只重启当前 Runtime，并保持当前运行模式。
-
-如果要把 codex-mcp 的 Controller 和 Runtime 都完全关闭：
-
-```bash
-codex-mcp shutdown
-```
-
----
-
-# ChatGPT 可以做什么？
-
-连接项目以后，ChatGPT 可以通过 codex-mcp：
-
-### 读取和搜索代码
-
-- 读取单个或多个文件
-- 搜索字符串和正则表达式
-- 按文件模式查找文件
-- 浏览目录
-- 查找代码关系
-
-### 修改代码
-
-- 使用事务式 `apply_patch` 精确替换已有代码
-- 批量创建、覆盖或删除文件
-- 提交失败时自动回滚本次批量改动
-
-### 执行命令
-
-- 运行构建
-- 运行测试
-- 安装依赖
-- 启动开发服务器
-- 管理长时间运行的进程
-
-### Git
-
-- 通过 `exec_command` 使用项目现有的 Git CLI
-
-### 项目切换
-
-当你说：
-
-> 继续这个项目。
-
-或者：
-
-> 先看看这个项目现在是什么情况。
-
-ChatGPT 会先用 `project_control` 查看并绑定一个已注册项目，再通过精简工具集读取代码、Skills 和命令结果。一个对话同一时间只绑定一个项目。
-
----
-
-# 项目路径边界
-
-所有文件工具和命令工作目录都限制在当前绑定项目的主目录内。
-
-## 当前项目
-
-运行：
-
-```bash
-cd ~/code/my-project
-codex-mcp start
-```
-
-那么：
-
-```text
-~/code/my-project
-```
-
-就是这个项目的主工作区。
-
-相对路径默认都从这里开始。
-
----
-
-## 访问其他目录
-
-需要处理另一个目录时，把它注册成独立项目：
-
-```bash
-codex-mcp project add /path/to/other-project
-```
-
-然后让 ChatGPT 使用 `project_control` 明确切换。工具不会通过绝对路径绕过当前项目边界。
-
-> 路径限制不是完整的操作系统沙箱。项目内启动的 shell 命令仍然拥有当前系统用户本身拥有的系统权限。
-
----
-
-# 使用 Codex、Claude Code 和 Skills
-
-codex-mcp 可以直接读取已有 AI 开发工具的配置，而不是复制一份。
-
-支持：
-
-| 来源 | MCP | Skills |
+| Source | MCP | Skills |
 |---|---:|---:|
-| Codex | ✅ | ✅ |
-| Claude Code | ✅ | ✅ |
-| Agent Skills | — | ✅ |
+| Codex | Yes | Yes |
+| Claude Code | Yes | Yes |
+| Agent Skills | — | Yes |
 
-常见位置包括：
+Common locations are `~/.codex/`, `~/.claude/`, and `~/.agents/skills/`; project `.claude/skills` is also supported. Configurations/tokens/skill files are referenced in place, not copied into ~/.codex-mcp. Run setup → **Manage external capabilities**. `watch` refreshes changes automatically (recommended); `startup` reads once at launch.
 
-```text
-~/.codex/
-~/.claude/
-~/.agents/skills/
-```
+# Command reference
 
-Claude Code 项目内的 `.claude/skills` 也可以按项目读取。
-
-这些能力默认只是**读取和引用原配置**，不会把第三方 Token、MCP 配置和 Skill 文件复制到 `~/.codex-mcp`。
-
-重新管理这些设置：
-
-```bash
-codex-mcp setup
-```
-
-然后选择：
-
-```text
-管理外部能力
-```
-
-支持两种同步方式：
-
-- `watch`：配置发生变化后自动刷新，推荐
-- `startup`：只在 codex-mcp 启动时读取一次
-
----
-
-# 常用命令
-
-| 命令 | 作用 |
+| Command | Effect |
 |---|---|
-| `codex-mcp` | 显示帮助，不隐式启动服务 |
-| `codex-mcp open` | 启动/复用本机 Controller 并打开 Web Console；不启动 Runtime |
-| `codex-mcp start` | 先注册当前项目，再按保存的模式启动/复用 MCP Runtime |
-| `codex-mcp status` | 查看 Controller、MCP Runtime、默认运行模式、Tunnel 和所有项目 |
-| `codex-mcp status --json` | 输出稳定的机器可读状态，其中包含本机 Web Console 地址 |
-| `http://127.0.0.1:<Controller端口>/` | 打开完整本机 Web Console；可执行 CLI 的用户级操作 |
-| `codex-mcp restart` | 重启 MCP Runtime，保留 Controller 和项目注册状态 |
-| `codex-mcp stop` | 停止 MCP Runtime 和 Tunnel；Controller / Web Console 保持在线 |
-| `codex-mcp shutdown` | 完全关闭 MCP Runtime 和 Controller / Web Console |
-| `codex-mcp project list` | 查看已注册项目 |
-| `codex-mcp project add [目录]` | 只注册项目，默认当前目录；不会启动 Runtime |
-| `codex-mcp project remove [项目]` | 停用项目，默认当前目录 |
-| `codex-mcp project info [项目]` | 查看项目详情 |
-| `codex-mcp bindings clean [项目]` | 交互清理指定项目的旧会话绑定，默认当前项目 |
-| `codex-mcp logs [--lines N]` | 查看最近运行日志 |
-| `codex-mcp logs -f` | 持续跟随运行日志 |
-| `codex-mcp setup` | 首次设置或管理现有配置 |
-| `codex-mcp doctor` | 只读检查安装、配置和依赖 |
-| `codex-mcp doctor --fix` | 恢复缺失的文件搜索组件、创建本机目录、清理失效 daemon 状态等安全修复 |
-| `codex-mcp auth` | 修改 ChatGPT 连接密码 |
-| `codex-mcp update` | 更新到最新版本 |
-| `codex-mcp start --root <目录>` | 注册指定目录，而不是当前目录 |
-| `codex-mcp start --local` | 显式切换并保存为本机模式，不开放公网 |
-| `codex-mcp start --public` | 显式切换并保存为公网模式；需要先配置公网连接和密码 |
-| `codex-mcp start --no-tunnel` | 公网模式下不自动启动 Cloudflare Tunnel |
-| `codex-mcp start --tunnel-logs` | 把 Tunnel 日志同时输出到运行日志 |
-| `codex-mcp --version` | 查看版本 |
-| `codex-mcp help` | 查看帮助 |
-
----
-
-# 再次运行 setup 会发生什么？
-
-已经完成首次配置后，再运行：
-
-```bash
-codex-mcp setup
-```
-
-不会重新走一遍所有步骤。
-
-你可以选择：
-
-- 检查当前配置
-- 修改公网连接
-- 重新登录 / 切换 Cloudflare 账号
-- 修改连接密码
-- 管理 Codex / Claude Code / Agent Skills
-- 退出，不做修改
-
-“检查当前配置”会真实验证公网地址是否能够连接回当前电脑，而不只是检查配置文件是否存在。
-这个检查只读取已提交配置和运行状态，不会登录 Cloudflare、修改 DNS 或重写 Tunnel 配置。
-
-修改公网连接时，如果后台服务正在运行，setup 会先保留它的完整运行参数和所有项目注册，安全停止后完成切换，再按原参数恢复。多项目和会话绑定文件不会被重置。
-
----
-
-# 配置保存在哪里？
-
-codex-mcp 的用户数据默认保存在：
-
-```text
-~/.codex-mcp/
-```
-
-主要文件包括：
-
-```text
-~/.codex-mcp/config.json
-~/.codex-mcp/controller.json
-~/.codex-mcp/daemon.json
-~/.codex-mcp/projects.json
-~/.codex-mcp/session-bindings.json
-~/.codex-mcp/logs/
-```
-
-其中：
-
-- `config.json`：监听地址、公网连接、外部能力、客户端工具策略和 UI 设置
-- `controller.json`：仅本机 Controller 的 PID、loopback 端口和随机控制凭据；Web Console 由它提供
-- `daemon.json`：当前 MCP Runtime 状态；执行 `stop` 后会移除，而 Controller 继续运行
-- `projects.json`：注册过的项目
-- `session-bindings.json`：ChatGPT 会话和项目的绑定关系
-
-Cloudflare 的登录和 Tunnel 凭据由 codex-mcp 放在自己的配置目录中管理，不依赖系统级 `~/.cloudflared` 作为长期运行状态。
-
----
-
-# 日志
-
-运行日志位于：
-
-```text
-~/.codex-mcp/logs/
-```
-
-结构化日志文件类似：
-
-```text
-codex-mcp.2026-08-12.0.jsonl
-```
-
-Cloudflare Tunnel 原始日志：
-
-```text
-~/.codex-mcp/logs/tunnel.log
-```
-
-正常的工具日志不会记录：
-
-- 原始命令内容
-- 文件内容
-- 工具返回的完整内容
-- OAuth 凭据
-
-它主要记录工具名、耗时、结果状态等运行信息。
-
-如果遇到启动、Tunnel 或 MCP 连接问题，首先查看这里。
-
----
-
-# 检查问题
-
-运行：
-
-```bash
-codex-mcp doctor
-```
-
-它会检查：
-
-- Node.js 版本
-- Git
-- 文件搜索组件
-- codex-mcp 配置
-- 连接密码
-- 公网地址
-- cloudflared
-- Cloudflare 登录
-- Tunnel 凭据
-- Tunnel 配置文件
-- 外部能力设置
-
-这是排查问题时最先应该运行的命令。
-
-如果文件搜索组件缺失，可以直接运行：
-
-```bash
-codex-mcp doctor --fix
-```
-
-它会下载项目固定版本的受管 ripgrep，校验 SHA-256，并在安装后重新验证版本；不需要重新执行整套安装脚本。
-
----
-
-# 常见问题
-
-## `codex-mcp` 命令找不到
-
-重新打开终端后再试。
-
-如果仍然找不到，重新运行安装脚本。
-
----
-
-## ChatGPT 连接不上
-
-先运行：
-
-```bash
-codex-mcp status
-codex-mcp doctor
-```
-
-确认：
-
-- 后台服务正在运行
-- 公网连接已启动
-- 公网地址正确
-- Tunnel 没有报错
-
-再查看：
-
-```text
-~/.codex-mcp/logs/
-```
-
----
-
-## 忘记连接密码
-
-密码明文无法找回。
-
-重新设置：
-
-```bash
-codex-mcp auth
-```
-
----
-
-## Cloudflare 登录错了账号
-
-运行：
-
-```bash
-codex-mcp setup
-```
-
-选择：
-
-```text
-重新登录 / 切换 Cloudflare 账号
-```
-
-codex-mcp 会在临时目录完成新登录并验证凭据，然后才替换自己管理的登录；取消或登录失败时旧凭据保持不变。它不会修改系统级 `~/.cloudflared`。
-
----
-
-## Cloudflare 上有旧 Tunnel，配置对不上
-
-重新运行：
-
-```bash
-codex-mcp setup
-```
-
-codex-mcp 会检查本机 Tunnel 凭据和 Cloudflare 上的 Tunnel 是否匹配。
-
-如果发现同名 Tunnel 但本机没有可用凭据，不会删除远端 Tunnel，而是创建带唯一后缀的 candidate。只有本次新建、配置尚未提交且没有被 DNS 引用的 candidate 才会自动清理。
-
----
-
-## Tunnel 一直连接不上
-
-查看：
-
-```text
-~/.codex-mcp/logs/tunnel.log
-```
-
-某些网络或防火墙会阻止 Cloudflare Tunnel 使用的 TCP 7844 连接。
-
-当前版本会优先使用 IPv4，并在连接超时时给出更具体的错误提示。
-
----
-
-## ChatGPT 看不到新的精简工具列表
-
-先在 ChatGPT 的 MCP / App 设置中执行 Refresh，或者重新发布 / 重新连接当前 MCP App。
-
-工具 ABI 已精简为固定的 15 个入口。旧的 ChatGPT action snapshot 不再兼容已删除的工具，因此升级后必须让 ChatGPT 重新扫描工具。
-
----
-
-## 我需要每个项目启动一个 codex-mcp 吗？
-
-不需要。
-
-每个项目只需要运行一次：
-
-```bash
-codex-mcp start
-```
-
-用来把它注册到同一个后台服务。
-
-真正运行的 MCP server 和 Cloudflare Tunnel 都只有一套。
-
----
-
-## 关闭终端以后 codex-mcp 会停吗？
-
-默认不会。
-
-正常的 `codex-mcp start` 会启动后台守护进程，终端命令完成后服务继续运行。
-
-查看：
-
-```bash
-codex-mcp status
-```
-
-停止后台服务：
-
-```bash
-codex-mcp stop
-```
-
----
-
-# 更新
-
-## 1.0 干净基线
-
-1.0 是一次 breaking release，不读取旧版命令、旧版配置字段或旧 OAuth 状态。升级前请用已安装的旧版 CLI 停止服务，备份 `~/.codex-mcp`，再移走其中的 `config.json`、`oauth-state.json`、`daemon.json`、`projects.json` 和 `session-bindings.json`，然后重新运行：
-
-```bash
-codex-mcp setup
-```
-
-请保留安装目录 `~/.codex-mcp/npm`、托管组件、连接密码和 Cloudflare 凭据。重新 setup 会选择新的已提交配置；旧 OAuth 会话与项目绑定不会恢复，项目需要重新注册。不要删除整个 `~/.codex-mcp`，否则脚本安装的 CLI 也会被删除。
-
-旧的 `tunnel`、`exit` 和 `serve --foreground` 入口已删除；分别使用 `setup`、`stop` / `project remove` 和后台 `start`。
-
-```bash
-codex-mcp update
-```
-
-1.0 之后的常规更新会保留配置和连接密码；从旧版首次升级仍须完成上面的基线重置。
-
-更新后运行：
-
-```bash
-codex-mcp restart
-```
-
-这样可以确保正在运行的 daemon 使用当前 CLI 版本。`codex-mcp status` 会同时显示 CLI 和 daemon 版本；如果两者不一致，会直接提示重启。
-
----
-
-# 卸载
-
-如果是用 npm 安装的：
-
-```bash
-npm uninstall -g @meesii/codex-mcp
-```
-
-如果是用安装脚本安装的：
-
-### macOS / Linux
+| `codex-mcp` | Help without startup |
+| `codex-mcp open` | Start/reuse Controller; open Console; no Runtime startup |
+| `codex-mcp start` | Register current project; start/reuse Runtime in saved mode |
+| `codex-mcp status [--json]` | Controller, Runtime, modes, Tunnel, projects; JSON includes Console URL |
+| `http://127.0.0.1:<Controller-port>/` | Full local GUI for user-level CLI operations |
+| `codex-mcp restart` | Restart Runtime; retain Controller/registrations |
+| `codex-mcp stop` | Stop Runtime/Tunnel; retain Controller/Console |
+| `codex-mcp shutdown` | Close everything |
+| `codex-mcp project list` | Registered projects |
+| `codex-mcp project add [directory]` | Register only; default current directory; no Runtime startup |
+| `codex-mcp project remove [project]` | Deactivate; default current directory |
+| `codex-mcp project info [project]` | Project details |
+| `codex-mcp bindings clean [project]` | Interactive old-binding cleanup; default current project |
+| `codex-mcp logs [--lines N]` | Recent logs |
+| `codex-mcp logs -f` | Follow logs |
+| `codex-mcp setup` | Initial setup / manage existing configuration |
+| `codex-mcp doctor [--fix]` | Read-only checks; safe local repairs with --fix |
+| `codex-mcp auth` | Change connection password |
+| `codex-mcp update` | Update from upstream |
+| `codex-mcp start --root <directory>` | Register specified directory |
+| `codex-mcp start --local` | Switch/save local mode, no public access |
+| `codex-mcp start --public` | Switch/save public mode; requires public config/password |
+| `codex-mcp start --no-tunnel` | Public mode without automatic Tunnel startup |
+| `codex-mcp start --tunnel-logs` | Mirror Tunnel logs |
+| `codex-mcp --version` | Version |
+| `codex-mcp help` | Help |
+
+# Setup management
+
+Running setup again offers configuration checks, public access changes, Cloudflare login/account switching, password changes, capabilities, or exit without changes. Checks prove the public address reaches this instance and only read committed config/runtime: no login, DNS mutation, or Tunnel rewrites.
+
+Changes retain complete runtime arguments/registrations, safely pause for switching, then restore the previous arguments. Project/binding files are not reset.
+
+# Data and logs
+
+Default directory: `~/.codex-mcp/`.
+
+| File | Contents |
+|---|---|
+| config.json | Listening address, public access, capabilities, client policy, UI |
+| controller.json | Local Controller PID, loopback port, random control credentials |
+| daemon.json | Runtime state; removed on stop, Controller remains |
+| projects.json | Registrations |
+| session-bindings.json | Conversation/project bindings |
+| logs/ | Runtime logs |
+
+Cloudflare credentials are managed here rather than relying on system ~/.cloudflared as durable runtime state. Structured logs resemble `codex-mcp.2026-08-12.0.jsonl`; raw Tunnel logs use `logs/tunnel.log`. Ordinary logs record tool names/durations/outcomes, not raw commands, file contents, complete responses, or OAuth credentials.
+
+# Diagnostics and troubleshooting
+
+Doctor checks Node, Git, search tools, config/password/public address, cloudflared/login/Tunnel credentials/config, and capabilities. `doctor --fix` restores pinned managed ripgrep with SHA-256/version verification, creates missing directories, and clears stale daemon state without reinstalling everything.
+
+- **Command missing:** reopen terminal, then reinstall if needed.
+- **ChatGPT cannot connect:** run status/doctor, check service/public URL/Tunnel, then inspect logs.
+- **Forgotten password:** reset with auth; plaintext cannot be recovered.
+- **Wrong Cloudflare account:** select login/account switching. A temporary login is verified before replacing old credentials; failure/cancellation preserves them and leaves system ~/.cloudflared alone.
+- **Old Tunnel mismatch:** rerun setup. A same-name Tunnel lacking local credentials is kept; create a uniquely suffixed candidate. Only new, uncommitted candidates with no DNS references are automatically removed.
+- **Tunnel cannot connect:** inspect tunnel.log; firewalls may block TCP 7844. IPv4 is preferred and timeouts provide specific hints.
+- **New tools missing:** refresh/republish/reconnect the MCP App and rescan the 15-tool ABI. Removed actions have no compatibility aliases.
+- **One server per project?** No; register all with the same background service/Tunnel.
+- **Closing terminal:** normal start keeps running in the background. Check status or stop explicitly.
+
+# Updates
+
+## Clean 1.0 baseline
+
+Version 1.0 deliberately breaks old commands/config/OAuth state. Before a first pre-1.0 upgrade, stop with the old CLI, back up ~/.codex-mcp, move aside config.json, oauth-state.json, daemon.json, projects.json, and session-bindings.json, then rerun setup.
+
+Keep ~/.codex-mcp/npm, managed tools, password, and Cloudflare credentials. Old sessions/bindings do not return; register projects again. Do not remove the whole directory: it also contains script-installed CLI files. Replace old tunnel with setup, exit with stop/project remove, and serve --foreground with background start.
+
+Routine post-1.0 updates preserve config/password. Run `codex-mcp update`, then `codex-mcp restart` so CLI/daemon versions match; status reports differences. For this English edition, follow the installation note above to avoid replacing it with upstream.
+
+# Uninstall
+
+For npm installations: `npm uninstall -g @meesii/codex-mcp`.
+
+For script installations:
 
 ```bash
 curl -fsSL https://github.com/meesii/codex-mcp/releases/latest/download/uninstall.sh | sh
 ```
 
-### Windows PowerShell
-
 ```powershell
 irm https://github.com/meesii/codex-mcp/releases/latest/download/uninstall.ps1 | iex
 ```
 
-卸载程序默认保留用户配置和连接密码。
+Configuration/passwords are preserved by default. Once certain all state is unwanted, manually remove ~/.codex-mcp.
 
-如果你确定不再使用，并希望彻底删除所有状态，可以再手动删除：
+# Security
 
-```text
-~/.codex-mcp
-```
+Do not share your instance/password. Register only trusted directories. Shell commands retain system-user permissions; manage production keys, SSH keys, and sensitive files using normal local development security practices. Public password authentication does not replace OS isolation.
 
----
+# Advanced: tool-list compatibility
 
-# 安全说明
+ChatGPT caches approved actions. Refresh/republish after upgrades to replace old snapshots with the complete 15-tool set. Project selection uses project_control; removed tools have no aliases.
 
-codex-mcp 的目标不是做一个强隔离沙箱，而是让个人开发环境中的 ChatGPT 可以真正完成开发工作。
-
-因此请注意：
-
-1. **不要把自己的 codex-mcp 实例分享给其他人。**
-2. **不要把连接密码公开。**
-3. **只注册你信任的项目目录。**
-4. **执行 shell 命令时，命令仍拥有当前系统用户本身的权限。**
-5. **如果电脑上保存了生产环境密钥、SSH Key 或其他敏感文件，请按照正常本机开发安全标准管理它们。**
-
-公网 MCP 入口需要连接密码认证，但它不能替代操作系统级隔离。
-
----
-
-# 高级说明：ChatGPT 工具列表兼容
-
-正常情况下你不需要关心这一节。
-
-ChatGPT 有时会缓存已经批准过的 MCP action 列表。当前工具 ABI 是固定的 15 个入口，升级后请在 ChatGPT 中 Refresh MCP App 或重新发布连接，让旧的 action snapshot 被完整替换。项目选择统一使用 `project_control`，其他已删除工具没有兼容别名。
-
----
-
-# 本地开发
-
-克隆项目后：
+# Local development
 
 ```bash
 npm ci
 npm run typecheck
 npm run build
-```
-
-开发模式：
-
-```bash
 npm run dev
 ```
 
-只在本机调试：
-
-```bash
-npm run dev:once -- --local
-```
-
-发布版本要求 Node.js 22。日常 CI 和发版验收都会在 Linux、macOS、Windows 上运行类型检查、完整测试和真实 tarball 隔离安装 smoke；发布流程只分发已经通过 smoke 的同一个 tarball artifact。
-
----
+Local-only debugging: `npm run dev:once -- --local`. Releases require Node 22. Linux/macOS/Windows CI runs typecheck, full tests, and isolated real-tarball installation smoke. Distribution uses the same tested artifact.
 
 # License
 

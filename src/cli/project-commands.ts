@@ -26,43 +26,43 @@ export async function runProjectCommand(flags: CliFlags): Promise<void> {
 
 export async function runBindingsCommand(flags: CliFlags): Promise<void> {
     if (flags.bindingsAction !== "clean") {
-        throw new Error("bindings 命令需要 clean 子命令");
+        throw new Error("The bindings command requires the clean subcommand");
     }
     if (!canPromptInteractively()) {
-        throw new Error("清理会话绑定需要在可以输入内容的终端里运行");
+        throw new Error("Clearing session bindings requires an interactive terminal");
     }
     const target = flags.target ?? resolveProjectRoot(undefined);
     const current = await listProjectConversations(target);
-    if (!current.project) throw new Error(`没有找到项目：${target}`);
+    if (!current.project) throw new Error(`Project not found: ${target}`);
 
     printIntro("codex-mcp bindings clean");
     if (current.conversations.length === 0) {
-        printInfo(`项目 ${current.project.name} 当前没有会话绑定。`);
-        printOutro("无需清理");
+        printInfo(`Project ${current.project.name} has no session bindings.`);
+        printOutro("Nothing to clear");
         return;
     }
 
     const selected = await multiselect<string>({
-        message: "空格选中要清理的会话；未选中项会保留",
+        message: "Press Space to select sessions to clear; unselected sessions will be kept",
         options: current.conversations.map((conversation) => ({
             value: conversation.id,
             label: `${conversation.label} ${conversation.id.slice(0, 6)}`,
-            hint: `最近 ${formatBindingTime(conversation.lastSeenAt)}`,
+            hint: `Last used ${formatBindingTime(conversation.lastSeenAt)}`,
         })),
         initialValues: [],
         required: false,
     });
-    if (isCancel(selected)) throw new Error("已取消清理会话绑定");
+    if (isCancel(selected)) throw new Error("Session binding cleanup cancelled");
     if (selected.length === 0) {
-        printInfo("没有选择要清理的会话，未做任何修改。");
-        printOutro("会话绑定未修改");
+        printInfo("No sessions selected. No changes made.");
+        printOutro("Session bindings unchanged");
         return;
     }
 
     const result = await cleanupProjectConversations(target, selected);
-    printSuccess(`已清理项目 ${current.project.name} 的 ${result.removed} 个会话绑定。`);
-    printInfo(`当前保留 ${result.conversations.length} 个会话绑定。`);
-    printOutro("会话绑定清理完成");
+    printSuccess(`Cleared ${result.removed} session bindings for project ${current.project.name}.`);
+    printInfo(`Kept ${result.conversations.length} session bindings.`);
+    printOutro("Session binding cleanup complete");
 }
 
 async function runProjectAction(flags: CliFlags): Promise<void> {
@@ -70,8 +70,8 @@ async function runProjectAction(flags: CliFlags): Promise<void> {
     if (action === "add") {
         const projectRoot = resolveProjectRoot(flags.target);
         const project = await addProject(projectRoot);
-        printSuccess(`已注册项目 ${project.name}（${project.path}）。`);
-        printInfo(`项目 ID：${project.id}`);
+        printSuccess(`Registered project ${project.name} (${project.path}).`);
+        printInfo(`Project ID: ${project.id}`);
         return;
     }
 
@@ -83,32 +83,32 @@ async function runProjectAction(flags: CliFlags): Promise<void> {
     const target = flags.target ?? resolveProjectRoot(undefined);
     if (action === "info") {
         const project = await getProject(target);
-        if (!project) throw new Error(flags.target ? `没有找到项目：${flags.target}` : "当前目录没有注册为项目");
+        if (!project) throw new Error(flags.target ? `Project not found: ${flags.target}` : "The current directory is not registered as a project");
         printIntro("codex-mcp project info");
-        printSummary("项目", [
-            { label: "名称", value: project.name },
+        printSummary("Project", [
+            { label: "Name", value: project.name },
             { label: "ID", value: project.id },
-            { label: "目录", value: project.path },
-            { label: "状态", value: project.active ? "活动" : "已停用" },
-            { label: "会话绑定", value: project.boundSessions == null ? "Runtime 未运行" : String(project.boundSessions) },
-            { label: "最后使用", value: project.lastSeenAt },
+            { label: "Directory", value: project.path },
+            { label: "Status", value: project.active ? "Active" : "Inactive" },
+            { label: "Session bindings", value: project.boundSessions == null ? "Runtime stopped" : String(project.boundSessions) },
+            { label: "Last used", value: project.lastSeenAt },
         ]);
-        printOutro("项目详情");
+        printOutro("Project details");
         return;
     }
 
     const result = await removeProject(target);
     if (!result.removed) {
-        printWarning(`项目 ${result.project.name} 已经是停用状态。`);
+        printWarning(`Project ${result.project.name} is already inactive.`);
         return;
     }
-    printSuccess(`已停用项目 ${result.project.name}（${result.project.path}）。`);
+    printSuccess(`Deactivated project ${result.project.name} (${result.project.path}).`);
 }
 
 function formatBindingTime(value: string): string {
     const timestamp = Date.parse(value);
     if (!Number.isFinite(timestamp)) return value;
-    return new Intl.DateTimeFormat("zh-CN", {
+    return new Intl.DateTimeFormat("en-US", {
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
@@ -120,13 +120,13 @@ function formatBindingTime(value: string): string {
 function printProjectList(projects: Array<RegisteredProject & { boundSessions?: number | null }>): void {
     printIntro("codex-mcp project list");
     if (projects.length === 0) {
-        printInfo("还没有注册项目。运行 `codex-mcp project add [目录]` 添加。");
-        printOutro("项目列表");
+        printInfo("No projects registered. Run `codex-mcp project add [directory]` to add one.");
+        printOutro("Project list");
         return;
     }
     for (const project of projects) {
-        const sessions = project.boundSessions == null ? " · Runtime 未运行" : ` · ${project.boundSessions} 个会话绑定`;
-        printInfo(`- ${project.name}${project.active ? "" : "（已停用）"} · ${project.id} · ${project.path}${sessions}`);
+        const sessions = project.boundSessions == null ? " · Runtime stopped" : ` · ${project.boundSessions} session bindings`;
+        printInfo(`- ${project.name}${project.active ? "" : " (Inactive)"} · ${project.id} · ${project.path}${sessions}`);
     }
-    printOutro(`${projects.length} 个项目`);
+    printOutro(`${projects.length} projects`);
 }

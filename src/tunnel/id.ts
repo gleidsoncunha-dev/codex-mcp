@@ -4,7 +4,7 @@ const TUNNEL_ID_RE =
 /** Normalize a Cloudflare Tunnel UUID before using it in paths or API calls. */
 export function normalizeTunnelId(value: unknown, field = "Tunnel ID"): string {
     if (typeof value !== "string" || !TUNNEL_ID_RE.test(value.trim())) {
-        throw new Error(`${field} 格式不正确`);
+        throw new Error(`${field} has an invalid format`);
     }
     return value.trim().toLowerCase();
 }

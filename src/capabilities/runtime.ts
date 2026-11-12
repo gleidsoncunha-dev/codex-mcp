@@ -52,7 +52,7 @@ export class CapabilityWatcher {
         private readonly skills: SkillRegistry,
         private readonly onError: (error: unknown) => void = (error) => {
             const detail = error instanceof Error ? error.message : String(error);
-            printCompactLog("error", `能力配置自动刷新失败：${detail}`);
+            printCompactLog("error", `Failed to refresh capability configuration automatically: ${detail}`);
             writeRuntimeLog("error", "capability_reload_failed", {
                 reason: error instanceof Error ? error.name : "unknown",
             });
